@@ -1,5 +1,6 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import '../services/stats_service.dart';
 
 class StatsPage extends StatefulWidget {
   const StatsPage({super.key});
@@ -9,354 +10,199 @@ class StatsPage extends StatefulWidget {
 }
 
 class _StatsPageState extends State<StatsPage> {
-  String selectedPeriod = "Tuần này";
-  bool? showCompletedOnly; // null = chưa chọn, true = Hoàn thành, false = Tất cả
+  Map<String, int> stats = {"total": 0, "done": 0, "overdue": 0};
+  List<Map<String, dynamic>> categoryStats = [];
+  List<Map<String, dynamic>> weeklyProgress = [];
+  List<Map<String, dynamic>> tasks = [];
+  bool showCompletedOnly = false;
 
-  // Dữ liệu công việc
-  final List<Map<String, dynamic>> allTasks = [
-    {"title": "Học React nâng cao", "time": "10:00", "category": "Học tập", "date": "Hôm nay", "isCompleted": true},
-    {"title": "Mua đồ dùng văn phòng", "time": "14:30", "category": "Công việc", "date": "Hôm qua", "isCompleted": true},
-    {"title": "Chạy bộ 5km", "time": "06:00", "category": "Sức khỏe", "date": "Hôm qua", "isCompleted": true},
-    {"title": "Gửi báo cáo dự án", "time": "20:00", "category": "Công việc", "date": "22/04", "isCompleted": true},
-    {"title": "Hoàn thành bài tập Flutter", "time": "09:00", "category": "Học tập", "date": "Hôm nay", "isCompleted": false},
-    {"title": "Đi siêu thị mua thực phẩm", "time": "17:00", "category": "Cá nhân", "date": "Hôm nay", "isCompleted": false},
-    {"title": "Lên kế hoạch tuần sau", "time": "", "category": "Công việc", "date": "23/04", "isCompleted": false},
-    {"title": "Kiểm tra sức khỏe định kỳ", "time": "08:00", "category": "Sức khỏe", "date": "25/04", "isCompleted": false},
-  ];
-
-  List<Map<String, dynamic>> get displayedTasks {
-    if (showCompletedOnly == null) return [];
-    if (showCompletedOnly == true) {
-      return allTasks.where((t) => t["isCompleted"] == true).toList();
-    }
-    return allTasks; // Tất cả
+  @override
+  void initState() {
+    super.initState();
+    _loadStats();
   }
 
-  final List<Map<String, dynamic>> categoryStats = [
-    {"name": "Công việc", "value": 7, "color": const Color(0xFF6B4EFF)},
-    {"name": "Học tập", "value": 5, "color": const Color(0xFF2196F3)},
-    {"name": "Cá nhân", "value": 3, "color": const Color(0xFF4CAF50)},
-    {"name": "Mua sắm", "value": 2, "color": const Color(0xFFFF9800)},
-    {"name": "Sức khỏe", "value": 1, "color": const Color(0xFFE91E63)},
-  ];
-
-  final List<int> weeklyProgress = [2, 3, 4, 5, 7, 6, 5];
-
-  int? touchedIndex;
+  void _loadStats() async {
+    stats = await StatsService.getOverviewStats();
+    categoryStats = await StatsService.getCategoryStats();
+    weeklyProgress = await StatsService.getWeeklyProgress();
+    tasks = await StatsService.getTasks(completedOnly: showCompletedOnly);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
-    final totalTasks = allTasks.length;
-    final completedCount = allTasks.where((t) => t["isCompleted"] == true).length;
-    final completionRate = totalTasks > 0 ? (completedCount / totalTasks * 100).round() : 0;
+    final completionRate = stats["total"] == 0 ? 0 : (stats["done"]! / stats["total"]! * 100).round();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Thống kê", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Row(
+          children: const [
+            Icon(Icons.bar_chart, color: Colors.white),
+            SizedBox(width: 8),
+            Text("Thống kê", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)], // xanh ngọc → xanh lá
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Dropdown thời gian
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: selectedPeriod,
-                  isExpanded: true,
-                  items: ["Tuần này", "Tháng này", "Năm nay"]
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) => setState(() => selectedPeriod = value!),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 2 thẻ thống kê
+            // Thẻ thống kê
             Row(
               children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => showCompletedOnly = true),
-                    child: _buildStatCard(
-                      "Hoàn thành",
-                      completedCount.toString(),
-                      Colors.green,
-                      "Công việc đã xong",
-                      isSelected: showCompletedOnly == true,
-                    ),
-                  ),
-                ),
+                Expanded(child: _buildStatCard("Hoàn thành", stats["done"].toString(), [Colors.green, Colors.teal], "Công việc đã xong")),
                 const SizedBox(width: 12),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => showCompletedOnly = false),
-                    child: _buildStatCard(
-                      "Tổng công việc",
-                      totalTasks.toString(),
-                      Colors.blue,
-                      "Tất cả công việc",
-                      isSelected: showCompletedOnly == false,
-                    ),
-                  ),
-                ),
+                Expanded(child: _buildStatCard("Tổng", stats["total"].toString(), [Colors.blue, Colors.indigo], "Tất cả công việc")),
+                const SizedBox(width: 12),
+                Expanded(child: _buildStatCard("Quá hạn", stats["overdue"].toString(), [Colors.red, Colors.deepOrange], "Chưa hoàn thành")),
               ],
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
             // Tỷ lệ hoàn thành
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                gradient: const LinearGradient(colors: [Colors.blue, Colors.indigo]),
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 10)],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text("Tỷ lệ hoàn thành", style: TextStyle(fontWeight: FontWeight.w600)),
+                  const Text("Tỷ lệ hoàn thành", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   LinearProgressIndicator(
                     value: completionRate / 100,
-                    backgroundColor: Colors.grey[200],
-                    color: Colors.blue,
+                    backgroundColor: Colors.white24,
+                    color: Colors.white,
                     minHeight: 10,
-                    borderRadius: BorderRadius.circular(10),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text("$completionRate%", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      Text("$completedCount / $totalTasks", style: const TextStyle(color: Colors.grey)),
-                    ],
-                  ),
+                  Text("$completionRate%", style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  Text("${stats["done"]} / ${stats["total"]}", style: const TextStyle(color: Colors.white70)),
                 ],
               ),
             ),
 
             const SizedBox(height: 28),
 
-            // Danh sách công việc (chỉ hiện khi đã chọn thẻ)
-            if (showCompletedOnly != null) ...[
-              Text(
-                showCompletedOnly == true ? "Công việc đã hoàn thành" : "Tất cả công việc",
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              _buildTaskList(displayedTasks),
-            ] else
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Text(
-                    "Chọn một thẻ để xem chi tiết công việc",
-                    style: TextStyle(color: Colors.grey, fontSize: 15),
-                  ),
+            // Biểu đồ tròn theo danh mục
+            const Text("Công việc theo danh mục", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            SizedBox(
+              height: 200,
+              child: PieChart(
+                PieChartData(
+                  sections: categoryStats.map((cat) {
+                    return PieChartSectionData(
+                      color: Colors.primaries[categoryStats.indexOf(cat) % Colors.primaries.length],
+                      value: (cat["count"] as int).toDouble(),
+                      title: "${cat["categoryName"]}\n${cat["count"]}",
+                      radius: 60,
+                      titleStyle: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    );
+                  }).toList(),
                 ),
               ),
+            ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 28),
 
-            // Biểu đồ tròn với chú thích bên phải + click hiệu ứng
-            const Text("Công việc theo danh mục", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
-            _buildInteractivePieChart(),
-
-            const SizedBox(height: 32),
-
-            // Biểu đồ cột
+            // Biểu đồ cột tiến độ tuần
             const Text("Tiến độ theo ngày", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
             SizedBox(
               height: 220,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: 8,
-                  barTouchData: BarTouchData(enabled: true),
+                  maxY: 10,
                   titlesData: FlTitlesData(
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         getTitlesWidget: (value, meta) {
-                          const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+                          const days = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
                           return Text(days[value.toInt()], style: const TextStyle(fontSize: 12));
                         },
                       ),
                     ),
-                    leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: true, reservedSize: 30)),
                   ),
-                  borderData: FlBorderData(show: false),
-                  barGroups: List.generate(7, (index) {
+                  barGroups: weeklyProgress.map((wp) {
+                    final weekday = int.parse(wp["weekday"]);
+                    final count = wp["count"];
                     return BarChartGroupData(
-                      x: index,
+                      x: weekday,
                       barRods: [
                         BarChartRodData(
-                          toY: weeklyProgress[index].toDouble(),
-                          color: Colors.blue,
+                          toY: count.toDouble(),
+                          gradient: const LinearGradient(colors: [Colors.purple, Colors.deepPurple]),
                           width: 18,
                           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                         ),
                       ],
                     );
-                  }),
+                  }).toList(),
                 ),
               ),
             ),
+
+            const SizedBox(height: 28),
+
+            // Danh sách công việc
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(showCompletedOnly ? "Công việc đã hoàn thành" : "Tất cả công việc", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                Switch(
+                  value: showCompletedOnly,
+                  onChanged: (v) {
+                    showCompletedOnly = v;
+                    _loadStats();
+                  },
+                ),
+              ],
+            ),
+            ...tasks.map((t) => Card(
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              child: ListTile(
+                leading: Icon(t["status"] == 1 ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: t["status"] == 1 ? Colors.green : Colors.grey),
+                title: Text(t["title"], style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text("${t["categoryName"] ?? ""} • Deadline: ${t["deadline"] ?? ""}"),
+              ),
+            )),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTaskList(List<Map<String, dynamic>> tasks) {
-    if (tasks.isEmpty) {
-      return const Center(child: Text("Không có công việc nào", style: TextStyle(color: Colors.grey)));
-    }
-
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: tasks.length,
-      itemBuilder: (context, index) {
-        final task = tasks[index];
-        final isCompleted = task["isCompleted"] as bool;
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          child: ListTile(
-            leading: Icon(
-              isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: isCompleted ? Colors.green : Colors.grey,
-            ),
-            title: Text(
-              task["title"],
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                decoration: isCompleted ? TextDecoration.lineThrough : null,
-              ),
-            ),
-            subtitle: Text("${task["category"]} • ${task["date"]}"),
-            trailing: Text(task["time"] ?? "", style: const TextStyle(color: Colors.grey)),
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Chi tiết: ${task["title"]}")),
-              );
-            },
-          ),
-        );
-      },
-    );
-  }
-
-  // Biểu đồ tròn có click hiệu ứng + chú thích bên phải
-  Widget _buildInteractivePieChart() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Biểu đồ
-        Expanded(
-          flex: 2,
-          child: SizedBox(
-            height: 200,
-            child: PieChart(
-              PieChartData(
-                pieTouchData: PieTouchData(
-                  touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                    setState(() {
-                      if (!event.isInterestedForInteractions ||
-                          pieTouchResponse == null ||
-                          pieTouchResponse.touchedSection == null) {
-                        touchedIndex = -1;
-                        return;
-                      }
-                      touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-                    });
-                  },
-                ),
-                sectionsSpace: 6,
-                centerSpaceRadius: 45,
-                sections: List.generate(categoryStats.length, (i) {
-                  final isTouched = i == touchedIndex;
-                  final cat = categoryStats[i];
-                  final value = (cat["value"] as int).toDouble();
-
-                  return PieChartSectionData(
-                    color: cat["color"],
-                    value: value,
-                    title: isTouched ? "$value" : "",
-                    radius: isTouched ? 68 : 58,
-                    titleStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  );
-                }),
-              ),
-            ),
-          ),
-        ),
-
-        // Chú thích (legend)
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: categoryStats.map((cat) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 7),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 16,
-                      decoration: BoxDecoration(
-                        color: cat["color"],
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(cat["name"], style: const TextStyle(fontSize: 14))),
-                    Text("${cat["value"]}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard(String title, String value, Color color, String subtitle, {bool isSelected = false}) {
+  Widget _buildStatCard(String title, String value, List<Color> colors, String subtitle) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isSelected ? color.withOpacity(0.08) : Colors.white,
+        gradient: LinearGradient(colors: colors),
         borderRadius: BorderRadius.circular(16),
-        border: isSelected ? Border.all(color: color, width: 2.5) : null,
-        boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.08), blurRadius: 12)],
+        boxShadow: [BoxShadow(color: colors.last.withOpacity(0.3), blurRadius: 8)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-          Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 13)),
+          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+          Text(subtitle, style: const TextStyle(color: Colors.white70)),
         ],
       ),
     );

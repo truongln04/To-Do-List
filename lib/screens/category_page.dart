@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'EditCategoryPage.dart';
-import 'add_category_page.dart';           // Trang thêm danh mục
-import 'category_detail_page.dart';       // Trang chi tiết danh mục (giả lập)
+import '../models/category_model.dart';
+import '../services/category_service.dart';
+import 'add_category_page.dart';
+import 'edit_category_page.dart';
+import 'category_detail_page.dart';
 
 class CategoryPage extends StatefulWidget {
   const CategoryPage({super.key});
@@ -11,179 +13,171 @@ class CategoryPage extends StatefulWidget {
 }
 
 class _CategoryPageState extends State<CategoryPage> {
-  // Danh sách danh mục (đúng thứ tự và màu như AddCategoryPage)
-  final List<Map<String, dynamic>> categories = [
-    {
-      "title": "Công việc",
-      "count": 5,
-      "icon": Icons.work,
-      "color": Colors.blue, // xanh dương
-    },
-    {
-      "title": "Học tập",
-      "count": 4,
-      "icon": Icons.school,
-      "color": Colors.deepPurple, // tím
-    },
-    {
-      "title": "Mua sắm",
-      "count": 2,
-      "icon": Icons.shopping_cart,
-      "color": Colors.orange, // cam
-    },
-    {
-      "title": "Cá nhân",
-      "count": 3,
-      "icon": Icons.person,
-      "color": Colors.green, // xanh lá
-    },
-    {
-      "title": "Sức khỏe",
-      "count": 1,
-      "icon": Icons.favorite,
-      "color": Colors.pink, // hồng
-    },
-  ];
+  List<Category> categories = [];
 
+  @override
+  void initState() {
+    super.initState();
+    loadData();
+  }
+
+  void loadData() async {
+    categories = await CategoryService.getAll();
+    setState(() {});
+  }
+
+  IconData getIcon(String? icon) {
+    switch (icon) {
+      case "work": return Icons.work;
+      case "study": return Icons.school;
+      case "shop": return Icons.shopping_cart;
+      case "person": return Icons.person;
+      case "health": return Icons.favorite;
+      default: return Icons.category;
+    }
+  }
+
+  // màu gradient đẹp hơn
+  List<Color> getGradient(int index) {
+    List<List<Color>> gradients = [
+      [Colors.blue, Colors.indigo],
+      [Colors.deepPurple, Colors.purpleAccent],
+      [Colors.orange, Colors.deepOrange],
+      [Colors.green, Colors.teal],
+      [Colors.pink, Colors.redAccent],
+    ];
+    return gradients[index % gradients.length];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Danh mục", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Row(
+          children: const [
+            Icon(Icons.category, color: Colors.white),
+            SizedBox(width: 8),
+            Text("Danh mục", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, size: 28),
+            icon: const Icon(Icons.add, color: Colors.white),
             onPressed: () async {
-              final result = await Navigator.push(
+              await Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AddCategoryPage()),
+                MaterialPageRoute(builder: (_) => const AddCategoryPage()),
               );
-              if (result != null) {
-                // TODO: Thêm danh mục mới vào list (sau này dùng state management)
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Đã thêm danh mục mới")),
-                );
-              }
+              loadData();
             },
           ),
         ],
       ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              "Danh mục của bạn",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                final cat = categories[index];
-                return _buildCategoryCard(cat);
-              },
-            ),
-          ),
-        ],
+
+      body: categories.isEmpty
+          ? const Center(child: Text("Chưa có danh mục"))
+          : ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: categories.length,
+        itemBuilder: (_, i) => _buildItem(categories[i], i),
       ),
     );
   }
 
-  Widget _buildCategoryCard(Map<String, dynamic> cat) {
+  Widget _buildItem(Category cat, int index) {
+    final gradientColors = getGradient(index);
+
     return GestureDetector(
       onTap: () {
-        // Giả lập điều hướng sang trang chi tiết danh mục
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CategoryDetailPage(categoryName: cat["title"]),
+            builder: (_) => CategoryDetailPage(
+              categoryId: cat.id!,
+              categoryName: cat.name,
+            ),
           ),
         );
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          gradient: LinearGradient(colors: gradientColors),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.08),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+              color: gradientColors.last.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            )
           ],
         ),
         child: Row(
           children: [
-            // Icon với nền tròn
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: (cat["color"] as Color).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(cat["icon"] as IconData, color: cat["color"] as Color, size: 28),
+            // ICON
+            CircleAvatar(
+              backgroundColor: Colors.white.withOpacity(0.2),
+              child: Icon(getIcon(cat.icon), color: Colors.white, size: 26),
             ),
             const SizedBox(width: 16),
 
-            // Tiêu đề + số lượng
+            // NAME
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    cat["title"],
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    "${cat["count"]} công việc",
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
+              child: Text(
+                cat.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
               ),
             ),
 
+            // MENU
             IconButton(
-              icon: const Icon(Icons.more_horiz, color: Colors.grey),
+              icon: const Icon(Icons.more_horiz, color: Colors.white),
               onPressed: () {
                 showModalBottomSheet(
                   context: context,
-                  builder: (context) => Column(
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  builder: (_) => Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.edit),
-                        title: const Text("Chỉnh sửa"),
-                        onTap: () {
-                          Navigator.pop(context); // đóng bottom sheet
-                          Navigator.push(
+                        leading: const Icon(Icons.edit, color: Colors.blue),
+                        title: const Text("Sửa"),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => EditCategoryPage(
-                                initialName: cat["title"],          // tên danh mục hiện tại
-                                initialIconIndex: categories.indexOf(cat), // index icon hiện tại
-                              ),
+                              builder: (_) => EditCategoryPage(category: cat),
                             ),
                           );
+                          loadData();
                         },
                       ),
                       ListTile(
-                        leading: const Icon(Icons.delete),
-                        title: const Text("Xóa danh mục"),
-                        onTap: () {
+                        leading: const Icon(Icons.delete, color: Colors.red),
+                        title: const Text("Xóa"),
+                        onTap: () async {
                           Navigator.pop(context);
-                          setState(() {
-                            categories.remove(cat); // xóa danh mục khỏi list
-                          });
+                          await CategoryService.delete(cat.id!);
+                          loadData();
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Đã xóa danh mục '${cat["title"]}'")),
+                            SnackBar(content: Text("Đã xóa '${cat.name}'")),
                           );
                         },
                       ),
@@ -192,8 +186,6 @@ class _CategoryPageState extends State<CategoryPage> {
                 );
               },
             ),
-
-
           ],
         ),
       ),

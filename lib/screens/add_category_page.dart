@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/category_model.dart';
+import '../services/category_service.dart';
 
 class AddCategoryPage extends StatefulWidget {
   const AddCategoryPage({super.key});
@@ -8,21 +10,28 @@ class AddCategoryPage extends StatefulWidget {
 }
 
 class _AddCategoryPageState extends State<AddCategoryPage> {
+
   final TextEditingController _nameController = TextEditingController();
   int? selectedIconIndex;
 
   final List<Map<String, dynamic>> icons = [
-    {"icon": Icons.work, "color": Colors.blue},
-    {"icon": Icons.school, "color": Colors.deepPurple},
-    {"icon": Icons.shopping_cart, "color": Colors.orange},
-    {"icon": Icons.person, "color": Colors.green},
-    {"icon": Icons.favorite, "color": Colors.red},
-    {"icon": Icons.check_circle, "color": Colors.teal},
-    {"icon": Icons.palette, "color": Colors.pink},
-    {"icon": Icons.public, "color": Colors.indigo},
-    {"icon": Icons.language, "color": Colors.brown},
-    {"icon": Icons.add, "color": Colors.grey}, // thêm mới
+    {"icon": Icons.work, "name": "work", "color": Colors.blue},
+    {"icon": Icons.school, "name": "study", "color": Colors.purple},
+    {"icon": Icons.shopping_cart, "name": "shop", "color": Colors.orange},
+    {"icon": Icons.person, "name": "person", "color": Colors.green},
+    {"icon": Icons.favorite, "name": "health", "color": Colors.red},
+    {"icon": Icons.flight, "name": "travel", "color": Colors.teal},
+    {"icon": Icons.attach_money, "name": "finance", "color": Colors.indigo},
+    {"icon": Icons.restaurant, "name": "food", "color": Colors.brown},
+    {"icon": Icons.music_note, "name": "music", "color": Colors.pink},
+    {"icon": Icons.computer, "name": "tech", "color": Colors.cyan},
+    {"icon": Icons.home, "name": "home", "color": Colors.deepOrange},
+    {"icon": Icons.sports_soccer, "name": "sport", "color": Colors.greenAccent},
+    {"icon": Icons.book, "name": "reading", "color": Colors.deepPurple},
+    {"icon": Icons.movie, "name": "movie", "color": Colors.blueGrey},
+    {"icon": Icons.nature, "name": "nature", "color": Colors.lightGreen},
   ];
+
 
   @override
   Widget build(BuildContext context) {
@@ -31,85 +40,66 @@ class _AddCategoryPageState extends State<AddCategoryPage> {
         title: const Text("Thêm Danh mục"),
         actions: [
           TextButton(
-            onPressed: () {
-              if (_nameController.text.isNotEmpty) {
-                Navigator.pop(context, {
-                  "name": _nameController.text,
-                  "icon": selectedIconIndex != null
-                      ? icons[selectedIconIndex!]
-                      : null,
-                });
-              }
+            onPressed: () async {
+              if (_nameController.text.isEmpty) return;
+
+              String iconName = selectedIconIndex != null
+                  ? icons[selectedIconIndex!]["name"]
+                  : "work";
+
+              await CategoryService.insert(
+                Category(
+                  name: _nameController.text,
+                  icon: iconName,
+                ),
+              );
+
+              Navigator.pop(context);
             },
             child: const Text("Thêm", style: TextStyle(fontSize: 18)),
           ),
         ],
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: ListView(
+        child: Column(
           children: [
+
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
                 labelText: "Tên danh mục",
-                hintText: "Nhập tên danh mục",
                 border: OutlineInputBorder(),
               ),
             ),
+
             const SizedBox(height: 20),
-            const Text("Chọn biểu tượng",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
+
             GridView.builder(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
               itemCount: icons.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
               ),
-              itemBuilder: (context, index) {
-                final iconData = icons[index]["icon"] as IconData;
-                final color = icons[index]["color"] as Color;
-                final isSelected = selectedIconIndex == index;
+              itemBuilder: (_, i) {
+                final icon = icons[i];
+                final isSelected = selectedIconIndex == i;
+
                 return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedIconIndex = index;
-                    });
-                  },
+                  onTap: () => setState(() => selectedIconIndex = i),
                   child: Container(
+                    margin: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? color.withOpacity(0.2)
+                          ? icon["color"].withOpacity(0.2)
                           : Colors.grey[200],
                       borderRadius: BorderRadius.circular(12),
-                      border: isSelected
-                          ? Border.all(color: color, width: 2)
-                          : null,
                     ),
-                    child: Icon(iconData,
-                        color: color,
-                        size: 30),
+                    child: Icon(icon["icon"], color: icon["color"]),
                   ),
                 );
               },
-            ),
-            const SizedBox(height: 20),
-            const Text("Hoặc thêm biểu tượng mới",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Container(
-              height: 80,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Center(
-                child: Icon(Icons.image, size: 40, color: Colors.grey),
-              ),
             ),
           ],
         ),

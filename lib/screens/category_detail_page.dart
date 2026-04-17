@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import '../models/task_model.dart';
-import 'add_subtask_page.dart';
+import '../models/subtask_model.dart';
+import '../services/task_service.dart';
+import '../services/subtask_service.dart';
+import 'add_task_page.dart';
+import 'task_detail_page.dart';
 
 class CategoryDetailPage extends StatefulWidget {
+  final int categoryId;
   final String categoryName;
 
-  const CategoryDetailPage({super.key, required this.categoryName});
+  const CategoryDetailPage({
+    super.key,
+    required this.categoryId,
+    required this.categoryName,
+  });
 
   @override
   State<CategoryDetailPage> createState() => _CategoryDetailPageState();
@@ -13,34 +22,29 @@ class CategoryDetailPage extends StatefulWidget {
 
 class _CategoryDetailPageState extends State<CategoryDetailPage> {
   int tabIndex = 0;
+  List<Task> tasks = [];
+  Map<int, List<SubTask>> subtaskMap = {};
 
-  List<Task> tasks = [
-    Task(
-      title: "Học React nâng cao",
-      priority: "Cao",
-      dueDate: DateTime(2024, 4, 24, 10, 0),
-      subTasks: [
-        SubTask(
-          title: "Xem video",
-          dueDate: DateTime(2024, 4, 24, 9, 0),
-        ),
-        SubTask(
-          title: "Làm bài tập",
-          dueDate: DateTime(2024, 4, 24, 9, 30),
-        ),
-      ],
-    ),
-    Task(
-      title: "Gửi báo cáo",
-      priority: "Trung bình",
-      dueDate: DateTime(2024, 4, 25, 16, 0),
-    ),
-  ];
+  void loadData() async {
+    final all = await TaskService.getAll();
+    tasks = all.where((t) => t.categoryId == widget.categoryId).toList();
 
-  /// FILTER TAB
+    subtaskMap.clear();
+    for (var t in tasks) {
+      subtaskMap[t.id!] = await SubTaskService.getByTask(t.id!);
+    }
+    setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    loadData();
+  }
+
   List<Task> get filteredTasks {
-    if (tabIndex == 1) return tasks.where((t) => !t.done).toList();
-    if (tabIndex == 2) return tasks.where((t) => t.done).toList();
+    if (tabIndex == 1) return tasks.where((t) => t.status == 0).toList();
+    if (tabIndex == 2) return tasks.where((t) => t.status == 1).toList();
     return tasks;
   }
 
@@ -48,208 +52,248 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xffF5F6FA),
-
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(widget.categoryName,
-            style: const TextStyle(color: Colors.black)),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-
-      body: Column(
-        children: [
-          /// ===== TAB =====
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                _tab("Tất cả", 0),
-                _tab("Chưa xong", 1),
-                _tab("Đã xong", 2),
-              ],
+        title: Text("Danh mục: ${widget.categoryName}",
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
           ),
-
-          /// ===== LIST TASK =====
+        ),
+      ),
+      body: Column(
+        children: [
+          _categoryHeader(),
+          _buildTabs(),
+          _addTaskButton(),
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(16),
               itemCount: filteredTasks.length,
-              itemBuilder: (context, index) {
-                return _taskItem(filteredTasks[index]);
-              },
+              itemBuilder: (_, i) => _taskItem(filteredTasks[i]),
             ),
           ),
         ],
       ),
+    );
+  }
 
-      /// ===== NÚT + =====
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // 👉 sau này mở AddTaskPage
-        },
-        child: const Icon(Icons.add),
+  /// HEADER DANH MỤC
+  Widget _categoryHeader() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.folder, color: Colors.white, size: 32),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.categoryName,
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
+                Text("${tasks.length} công việc",
+                    style: const TextStyle(color: Colors.white70, fontSize: 12)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  /// ===== TAB ITEM =====
-  Widget _tab(String text, int i) {
-    final isActive = tabIndex == i;
+  /// TABS
+  Widget _buildTabs() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          _tab("Tất cả", 0),
+          _tab("Chưa xong", 1),
+          _tab("Đã xong", 2),
+        ],
+      ),
+    );
+  }
 
+  Widget _tab(String text, int i) {
+    final active = tabIndex == i;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => tabIndex = i),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xff4A6CF7) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Center(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: isActive ? Colors.white : Colors.grey,
-              ),
-            ),
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Column(
+            children: [
+              Text(text,
+                  style: TextStyle(
+                      color: active ? Colors.deepPurple : Colors.grey,
+                      fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Container(
+                height: 2,
+                color: active ? Colors.deepPurple : Colors.transparent,
+              )
+            ],
           ),
         ),
       ),
     );
   }
 
-  /// ===== TASK ITEM =====
-  Widget _taskItem(Task task) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          /// TASK CHA
-          Row(
-            children: [
-              Checkbox(
-                value: task.done,
-                onChanged: (v) {
-                  setState(() {
-                    task.done = v!;
-                    for (var sub in task.subTasks) {
-                      sub.done = v;
-                    }
-                  });
-                },
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      task.title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        decoration:
-                        task.done ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    Text(
-                      _formatDate(task.dueDate),
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          /// ===== SUBTASK =====
-          ...task.subTasks.map((sub) {
-            return Padding(
-              padding: const EdgeInsets.only(left: 40, top: 6),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: sub.done,
-                    onChanged: (v) {
-                      setState(() {
-                        sub.done = v!;
-                        task.done =
-                            task.subTasks.every((s) => s.done == true);
-                      });
-                    },
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          sub.title,
-                          style: TextStyle(
-                            decoration: sub.done
-                                ? TextDecoration.lineThrough
-                                : null,
-                          ),
-                        ),
-                        Text(
-                          _formatDate(sub.dueDate),
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-
-          const SizedBox(height: 8),
-
-          /// ===== ADD SUBTASK =====
-          GestureDetector(
-            onTap: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AddSubTaskPage(parentTask: task),
-                ),
-              );
-
-              if (result != null) {
-                setState(() {
-                  task.subTasks.add(result);
-                });
-              }
-            },
-            child: const Padding(
-              padding: EdgeInsets.only(left: 40),
-              child: Text("+ Thêm công việc con",
-                  style: TextStyle(color: Colors.blue)),
+  /// NÚT THÊM TASK
+  Widget _addTaskButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: GestureDetector(
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddTaskPage()),
+          );
+          if (result == true) loadData();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6A11CB), Color(0xFF2575FC)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+            borderRadius: BorderRadius.circular(20),
           ),
-        ],
+          child: const Text("+  Thêm công việc",
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
       ),
     );
   }
 
-  /// ===== FORMAT DATE =====
-  String _formatDate(DateTime? d) {
-    if (d == null) return "";
-    return "${d.day}/${d.month} ${d.hour}:${d.minute.toString().padLeft(2, '0')}";
+  /// TASK ITEM
+  Widget _taskItem(Task task) {
+    return InkWell(
+      onTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => TaskDetailPage(
+              task: task,
+              categoryId: widget.categoryId,
+              categoryName: widget.categoryName,
+            ),
+          ),
+        );
+        if (result == true) loadData();
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        ),
+        child: Row(
+          children: [
+            Checkbox(
+              value: task.status == 1,
+              activeColor: Colors.deepPurple,
+              onChanged: (v) async {
+                task.status = v! ? 1 : 0;
+                await TaskService.update(task);
+                loadData();
+              },
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(task.title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        decoration: task.status == 1
+                            ? TextDecoration.lineThrough
+                            : null,
+                      )),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today,
+                          size: 14, color: Colors.blue),
+                      const SizedBox(width: 4),
+                      Text(task.deadline ?? "",
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.black54)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            _priorityBadge(task.priority),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// BADGE ƯU TIÊN
+  Widget _priorityBadge(int p) {
+    String text;
+    Color color;
+    IconData icon;
+    switch (p) {
+      case 3:
+        text = "Cao";
+        color = Colors.red;
+        icon = Icons.flash_on;
+        break;
+      case 2:
+        text = "TB";
+        color = Colors.orange;
+        icon = Icons.hourglass_bottom;
+        break;
+      case 1:
+        text = "Thấp";
+        color = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      default:
+        text = "Không";
+        color = Colors.grey;
+        icon = Icons.help_outline;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 4),
+          Text(text,
+              style: TextStyle(
+                  color: color, fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
   }
 }
