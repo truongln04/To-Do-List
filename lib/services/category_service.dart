@@ -1,6 +1,6 @@
 import '../database/db_helper.dart';
 import '../models/category_model.dart';
-
+import '../services/task_service.dart';
 class CategoryService {
 
   static Future<int> insert(Category c) async {
@@ -32,4 +32,10 @@ class CategoryService {
       whereArgs: [id],
     );
   }
+
+  static Future<int> getTaskCount(int categoryId) async {
+    final allTasks = await TaskService.getAll();
+    return allTasks.where((t) => t.categoryId == categoryId).length;
+  }
+
 }

@@ -5,6 +5,8 @@ import 'add_category_page.dart';
 import 'edit_category_page.dart';
 import 'category_detail_page.dart';
 
+
+
 class CategoryPage extends StatefulWidget {
   const CategoryPage({super.key});
 
@@ -23,8 +25,15 @@ class _CategoryPageState extends State<CategoryPage> {
 
   void loadData() async {
     categories = await CategoryService.getAll();
+
+    for (var cat in categories) {
+      cat.taskCount = await CategoryService.getTaskCount(cat.id!);
+    }
+
     setState(() {});
   }
+
+
 
   IconData getIcon(String? icon) {
     switch (icon) {
@@ -133,15 +142,26 @@ class _CategoryPageState extends State<CategoryPage> {
 
             // NAME
             Expanded(
-              child: Text(
-                cat.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    cat.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "${cat.taskCount} công việc",
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
               ),
             ),
+
 
             // MENU
             IconButton(

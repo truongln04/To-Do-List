@@ -31,10 +31,30 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
 
     subtaskMap.clear();
     for (var t in tasks) {
-      subtaskMap[t.id!] = await SubTaskService.getByTask(t.id!);
-    }
+      final subs = await SubTaskService.getByTask(t.id!);
+      subtaskMap[t.id!] = subs;
+
+      if (subs.isNotEmpty) {
+        final hasDone = subs.any((s) => s.isDone == true);
+        final hasNotDone = subs.any((s) => s.isDone == false);
+
+        if (hasDone && hasNotDone) {
+          t.status = 2; // Đang thực hiện
+        } else if (hasNotDone && !hasDone) {
+          t.status = 0; // Chưa xong
+        } else if (hasDone && !hasNotDone) {
+          t.status = 1; // Đã xong
+        }
+      } else {
+        // Nếu không có subtask thì giữ nguyên status gốc
+        t.status = t.status;
+      }
+  }
+
+
     setState(() {});
   }
+
 
   @override
   void initState() {
@@ -45,6 +65,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
   List<Task> get filteredTasks {
     if (tabIndex == 1) return tasks.where((t) => t.status == 0).toList();
     if (tabIndex == 2) return tasks.where((t) => t.status == 1).toList();
+    if (tabIndex == 3) return tasks.where((t) => t.status == 2).toList();
     return tasks;
   }
 
@@ -125,6 +146,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
         children: [
           _tab("Tất cả", 0),
           _tab("Chưa xong", 1),
+          _tab("Đang thực hiện", 3),
           _tab("Đã xong", 2),
         ],
       ),
