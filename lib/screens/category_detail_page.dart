@@ -5,6 +5,8 @@ import '../services/task_service.dart';
 import '../services/subtask_service.dart';
 import 'add_task_page.dart';
 import 'task_detail_page.dart';
+import 'package:intl/intl.dart';
+
 
 class CategoryDetailPage extends StatefulWidget {
   final int categoryId;
@@ -35,28 +37,25 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
       subtaskMap[t.id!] = subs;
 
       if (subs.isNotEmpty) {
-        final hasDone = subs.any((s) => s.isDone == true);
-        final hasNotDone = subs.any((s) => s.isDone == false);
+        final hasDone = subs.any((s) => s.isDone == 1);
+        final hasNotDone = subs.any((s) => s.isDone == 0);
+        final hasDoing = subs.any((s) => s.isDone == 2);
 
-        if (hasDone && hasNotDone) {
+        if (hasDoing || (hasDone && hasNotDone)) {
           t.status = 2; // Đang thực hiện
-        } else if (hasNotDone && !hasDone) {
+        } else if (hasNotDone && !hasDone && !hasDoing) {
           t.status = 0; // Chưa xong
-        } else if (hasDone && !hasNotDone) {
+        } else if (hasDone && !hasNotDone && !hasDoing) {
           t.status = 1; // Đã xong
         }
-      } else {
-        // Nếu không có subtask thì giữ nguyên status gốc
-        t.status = t.status;
       }
-  }
-
+    }
 
     setState(() {});
   }
 
 
-  @override
+    @override
   void initState() {
     super.initState();
     loadData();
@@ -146,7 +145,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
         children: [
           _tab("Tất cả", 0),
           _tab("Chưa xong", 1),
-          _tab("Đang thực hiện", 3),
+          _tab("Đang làm", 3),
           _tab("Đã xong", 2),
         ],
       ),
@@ -186,7 +185,12 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
         onTap: () async {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const AddTaskPage()),
+            MaterialPageRoute(
+              builder: (_) => AddTaskPage(
+                defaultCategoryId: widget.categoryId,
+                defaultCategoryName: widget.categoryName,
+              ),
+            ),
           );
           if (result == true) loadData();
         },
@@ -200,12 +204,15 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
             ),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: const Text("+  Thêm công việc",
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          child: const Text(
+            "+  Thêm công việc",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );
   }
+
 
   /// TASK ITEM
   Widget _taskItem(Task task) {
@@ -239,6 +246,14 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
               onChanged: (v) async {
                 task.status = v! ? 1 : 0;
                 await TaskService.update(task);
+
+                // đồng bộ subtasks theo trạng thái cha
+                final subs = await SubTaskService.getByTask(task.id!);
+                for (var s in subs) {
+                  s.isDone = task.status;
+                  await SubTaskService.update(s);
+                }
+
                 loadData();
               },
             ),
@@ -260,14 +275,40 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
                       const Icon(Icons.calendar_today,
                           size: 14, color: Colors.blue),
                       const SizedBox(width: 4),
-                      Text(task.deadline ?? "",
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black54)),
+                      Text(
+                        _formatDateTimeString(task.deadline),
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black54),
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
+
+            // 👉 Tiến độ subtasks bên phải
+            FutureBuilder<Map<String, int>>(
+              future: SubTaskService.getProgress(task.id!),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!["total"] == 0) {
+                  return const SizedBox();
+                }
+                final done = snapshot.data!["done"]!;
+                final total = snapshot.data!["total"]!;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text(
+                    "$done/$total",
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueAccent,
+                    ),
+                  ),
+                );
+              },
+            ),
+
             _priorityBadge(task.priority),
           ],
         ),
@@ -318,4 +359,21 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
       ),
     );
   }
+
+  String _formatDateTimeString(String? raw) {
+    if (raw == null || raw.isEmpty) return "";
+    try {
+      DateTime dt = DateTime.parse(raw);
+      return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+    } catch (_) {
+      try {
+        final cleaned = raw.split('.').first;
+        DateTime dt = DateTime.parse(cleaned);
+        return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+      } catch (_) {
+        return raw.replaceAll('.000', '');
+      }
+    }
+  }
+
 }

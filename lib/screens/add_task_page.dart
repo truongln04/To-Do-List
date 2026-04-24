@@ -145,17 +145,36 @@ class _AddTaskPageState extends State<AddTaskPage> {
   }
 
   void _saveTask() async {
-    if (titleController.text.isEmpty) return;
+    if (titleController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Tiêu đề không được để trống")),
+      );
+      return;
+    }
 
+    // kiểm tra trùng tên
+    final allTasks = await TaskService.getAll();
+    final exists = allTasks.any((t) =>
+    t.title.trim().toLowerCase() == titleController.text.trim().toLowerCase());
+    if (exists) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Tiêu đề công việc đã tồn tại")),
+      );
+      return;
+    }
+
+    // mức ưu tiên
     int prio = 2;
     if (priority == "Cao") prio = 3;
     if (priority == "Thấp") prio = 1;
 
+    // deadline
     String? deadline;
     if (dueDate != null) {
       deadline = dueDate!.toIso8601String();
     }
 
+    // thời gian nhắc
     DateTime? notifyTime;
     if (reminder && dueDate != null) {
       if (reminderTime == "Trước 1 phút") {
@@ -167,6 +186,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
       }
     }
 
+    // tạo task mới
     final task = Task(
       title: titleController.text.trim(),
       description: descController.text.trim(),
@@ -179,18 +199,31 @@ class _AddTaskPageState extends State<AddTaskPage> {
 
     final taskId = await TaskService.insert(task);
 
-    if (notifyTime != null) {
-      await NotificationService.schedule(
-        DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        "Nhắc việc",
-        task.title,
-        notifyTime,
-        taskId: taskId,
-        type: 1,
-      );
+    // xử lý notification
+    if (reminder && notifyTime != null) {
+      if (notifyTime.isAfter(DateTime.now())) {
+        // nếu đã có thông báo thì update, chưa có thì insert
+        await NotificationService.deleteByTaskId(taskId);
+        await NotificationService.schedule(
+          taskId, // dùng taskId làm id
+          "Nhắc việc",
+          task.title,
+          notifyTime,
+          taskId: taskId,
+          type: 1,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Thời gian nhắc đã qua, không thể tạo thông báo")),
+        );
+      }
+    } else {
+      // nếu reminder = false thì hủy notification và xóa khỏi DB
+      await NotificationService.cancel(taskId);
+      await NotificationService.deleteByTaskId(taskId);
     }
 
-    Navigator.pop(context, true); // quay về trang trước và reload
+    Navigator.pop(context, true);
   }
 
   Widget _label(String text) => Padding(

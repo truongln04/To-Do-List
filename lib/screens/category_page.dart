@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/category_model.dart';
+import '../models/custom_icons.dart';
 import '../services/category_service.dart';
 import 'add_category_page.dart';
 import 'edit_category_page.dart';
 import 'category_detail_page.dart';
-
-
 
 class CategoryPage extends StatefulWidget {
   const CategoryPage({super.key});
@@ -25,25 +24,10 @@ class _CategoryPageState extends State<CategoryPage> {
 
   void loadData() async {
     categories = await CategoryService.getAll();
-
     for (var cat in categories) {
       cat.taskCount = await CategoryService.getTaskCount(cat.id!);
     }
-
     setState(() {});
-  }
-
-
-
-  IconData getIcon(String? icon) {
-    switch (icon) {
-      case "work": return Icons.work;
-      case "study": return Icons.school;
-      case "shop": return Icons.shopping_cart;
-      case "person": return Icons.person;
-      case "health": return Icons.favorite;
-      default: return Icons.category;
-    }
   }
 
   // màu gradient đẹp hơn
@@ -91,7 +75,6 @@ class _CategoryPageState extends State<CategoryPage> {
           ),
         ],
       ),
-
       body: categories.isEmpty
           ? const Center(child: Text("Chưa có danh mục"))
           : ListView.builder(
@@ -104,6 +87,7 @@ class _CategoryPageState extends State<CategoryPage> {
 
   Widget _buildItem(Category cat, int index) {
     final gradientColors = getGradient(index);
+    final customIcon = getCustomIcon(cat.icon);
 
     return GestureDetector(
       onTap: () {
@@ -136,11 +120,11 @@ class _CategoryPageState extends State<CategoryPage> {
             // ICON
             CircleAvatar(
               backgroundColor: Colors.white.withOpacity(0.2),
-              child: Icon(getIcon(cat.icon), color: Colors.white, size: 26),
+              child: Icon(customIcon.icon, color: Colors.white, size: 26),
             ),
             const SizedBox(width: 16),
 
-            // NAME
+            // NAME + TASK COUNT
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +146,6 @@ class _CategoryPageState extends State<CategoryPage> {
               ),
             ),
 
-
             // MENU
             IconButton(
               icon: const Icon(Icons.more_horiz, color: Colors.white),
@@ -170,7 +153,8 @@ class _CategoryPageState extends State<CategoryPage> {
                 showModalBottomSheet(
                   context: context,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(16)),
                   ),
                   builder: (_) => Column(
                     mainAxisSize: MainAxisSize.min,

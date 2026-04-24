@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/category_model.dart';
+import '../models/custom_icons.dart';
 import '../services/category_service.dart';
 
 class EditCategoryPage extends StatefulWidget {
@@ -12,27 +13,17 @@ class EditCategoryPage extends StatefulWidget {
 }
 
 class _EditCategoryPageState extends State<EditCategoryPage> {
-
   late TextEditingController _nameController;
   int? selectedIconIndex;
-
-  final List<Map<String, dynamic>> icons = [
-    {"icon": Icons.work, "name": "work", "color": Colors.blue},
-    {"icon": Icons.school, "name": "study", "color": Colors.deepPurple},
-    {"icon": Icons.shopping_cart, "name": "shop", "color": Colors.orange},
-    {"icon": Icons.person, "name": "person", "color": Colors.green},
-    {"icon": Icons.favorite, "name": "health", "color": Colors.red},
-  ];
 
   @override
   void initState() {
     super.initState();
-
     _nameController = TextEditingController(text: widget.category.name);
 
     // 👉 tìm index icon từ DB
-    selectedIconIndex = icons.indexWhere(
-          (e) => e["name"] == widget.category.icon,
+    selectedIconIndex = customIcons.indexWhere(
+          (e) => e.name == widget.category.icon,
     );
 
     if (selectedIconIndex == -1) selectedIconIndex = 0;
@@ -42,15 +33,27 @@ class _EditCategoryPageState extends State<EditCategoryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Sửa Danh mục"),
+        title: const Text(
+          "Sửa Danh mục",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () async {
               if (_nameController.text.isEmpty) return;
 
-              String iconName = icons[selectedIconIndex!]["name"];
+              String iconName = customIcons[selectedIconIndex!].name;
 
-              // 👉 UPDATE DB
               await CategoryService.update(
                 Category(
                   id: widget.category.id,
@@ -59,18 +62,19 @@ class _EditCategoryPageState extends State<EditCategoryPage> {
                 ),
               );
 
-              Navigator.pop(context);
+              Navigator.pop(context, true); // trả về true để trang trước load lại
             },
-            child: const Text("Lưu", style: TextStyle(fontSize: 18)),
+            child: const Text(
+              "Lưu",
+              style: TextStyle(fontSize: 18, color: Colors.white),
+            ),
           ),
         ],
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-
             // input name
             TextField(
               controller: _nameController,
@@ -79,27 +83,25 @@ class _EditCategoryPageState extends State<EditCategoryPage> {
                 border: OutlineInputBorder(),
               ),
             ),
-
             const SizedBox(height: 20),
 
             const Text("Chọn biểu tượng",
                 style: TextStyle(fontWeight: FontWeight.bold)),
-
             const SizedBox(height: 10),
 
             // icon grid
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: icons.length,
+              itemCount: customIcons.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
               ),
               itemBuilder: (context, index) {
-                final iconData = icons[index]["icon"] as IconData;
-                final color = icons[index]["color"] as Color;
+                final iconData = customIcons[index].icon;
+                final color = customIcons[index].color;
                 final isSelected = selectedIconIndex == index;
 
                 return GestureDetector(

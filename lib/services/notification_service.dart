@@ -84,10 +84,13 @@ class NotificationService {
       isSent: 0,
     );
 
-    await insert(noti);
+    final insertedId = await insert(noti);
+    print(
+        "✅ Inserted notification with id: $insertedId, taskId: $taskId, time: ${date
+            .toString()}");
   }
 
-  /// ================= CANCEL =================
+    /// ================= CANCEL =================
   static Future cancel(int id) async {
     await _plugin.cancel(id);
   }
@@ -106,11 +109,51 @@ class NotificationService {
   static Future<List<Map<String, dynamic>>> getTaskNotifications() async {
     final db = await DBHelper.db;
     return await db.rawQuery('''
-      SELECT t.title, t.deadline, c.name as categoryName
-      FROM tasks t
-      LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.hasNotification = 1
-      ORDER BY t.deadline ASC
-    ''');
+    SELECT n.id, n.task_id as taskId, n.notify_time,
+           t.title, t.deadline,
+           c.id as categoryId, c.name as categoryName
+    FROM notifications n
+    LEFT JOIN tasks t ON n.task_id = t.id
+    LEFT JOIN categories c ON t.category_id = c.id
+    ORDER BY n.notify_time ASC
+  ''');
   }
+  static Future<List<Map<String, dynamic>>> getFullNotifications() async {
+    final db = await DBHelper.db;
+    return await db.rawQuery('''
+    SELECT n.id, n.notify_time, n.type, n.is_sent,
+           n.task_id, t.title as taskTitle, t.deadline,
+           n.subtask_id, s.title as subtaskTitle,
+           c.id as categoryId, c.name as categoryName
+    FROM notifications n
+    LEFT JOIN tasks t ON n.task_id = t.id
+    LEFT JOIN subtasks s ON n.subtask_id = s.id
+    LEFT JOIN categories c ON t.category_id = c.id
+    ORDER BY n.notify_time ASC
+  ''');
+  }
+
+
+
+  // Xóa thông báo theo taskId
+  static Future deleteByTaskId(int taskId) async {
+    final db = await DBHelper.db;
+    await db.delete(
+      'notifications',
+      where: 'task_id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
+// Update thời gian nhắc
+  static Future updateNotifyTime(int taskId, String newTime) async {
+    final db = await DBHelper.db;
+    await db.update(
+      'notifications',
+      {'notify_time': newTime, 'is_sent': 0},
+      where: 'task_id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
 }

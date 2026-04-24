@@ -75,6 +75,8 @@ class TaskService {
     return maps.map((m) => Task.fromMap(m)).toList();
   }
 
+
+
   static Future<List<Task>> getHighPriorityTasks() async {
     final db = await DBHelper.db;
     final todayStr = DateTime.now().toIso8601String().substring(0,10); // yyyy-MM-dd

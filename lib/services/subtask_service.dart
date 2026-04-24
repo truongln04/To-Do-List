@@ -54,5 +54,10 @@ class SubTaskService {
     return db.delete('subtasks', where: 'id=?', whereArgs: [id]);
   }
 
-
+  static Future<Map<String, int>> getProgress(int taskId) async {
+    final subs = await SubTaskService.getByTask(taskId);
+    final done = subs.where((s) => s.isDone == 1).length;
+    final total = subs.length;
+    return {"done": done, "total": total};
+  }
 }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../services/notification_service.dart';
+import 'task_detail_page.dart';
+import '../models/task_model.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -16,6 +19,7 @@ class _NotificationPageState extends State<NotificationPage> {
   void initState() {
     super.initState();
     _loadNotifications();
+
   }
 
   void _loadNotifications() async {
@@ -26,56 +30,98 @@ class _NotificationPageState extends State<NotificationPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Thông báo"),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSectionTitle("Thông báo hệ thống", Icons.notifications_active, Colors.orange),
-          const SizedBox(height: 10),
-          ...systemNotifications.map((n) => _buildNotificationCard(
-            n['title'] ?? "Thông báo",
-            n['content'] ?? "",
-            Icons.notifications,
-            [Colors.orange, Colors.deepOrange],
-          )),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(
+            "Thông báo",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+          flexibleSpace: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)], // header gradient
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          elevation: 0,
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.task_alt), text: "Công việc"),
+              Tab(icon: Icon(Icons.notifications_active), text: "Hệ thống"),
+            ],
+          ),
+        ),
+        body: Container(
+          color: Colors.white, // nền trắng cho nội dung
+          child: TabBarView(
+            children: [
+              // Panel công việc
+              FutureBuilder(
+                future: NotificationService.getFullNotifications(),
+                builder: (_, snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  final notis = snapshot.data!;
+                  if (notis.isEmpty) return const Center(child: Text("Không có thông báo"));
+                  return ListView.builder(
+                    itemCount: notis.length,
+                    itemBuilder: (_, i) {
+                      final n = notis[i];
+                      final dt = DateTime.tryParse(n['notify_time']);
+                      final timeStr = dt != null ? DateFormat("dd/MM/yyyy HH:mm").format(dt) : "";
 
-          const SizedBox(height: 30),
+                      return ListTile(
+                        leading: const Icon(Icons.notifications, color: Colors.blue),
+                        title: Text(n['taskTitle'] ?? n['subtaskTitle'] ?? "Công việc"),
+                        subtitle: Text("Danh mục: ${n['categoryName'] ?? ""}\nThời gian: $timeStr"),
+                      );
+                    },
+                  );
+                },
+              ),
 
-          _buildSectionTitle("Thông báo công việc", Icons.task_alt, Colors.blue),
-          const SizedBox(height: 10),
-          ...taskNotifications.map((t) => _buildNotificationCard(
-            t['title'] ?? "Công việc",
-            "Danh mục: ${t['categoryName'] ?? ""} • Deadline: ${t['deadline'] ?? ""}",
-            Icons.work,
-            [Colors.blue, Colors.indigo],
-          )),
-        ],
+
+
+              // Panel hệ thống
+              systemNotifications.isEmpty
+                  ? const Center(child: Text("Không có thông báo hệ thống"))
+                  : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: systemNotifications.length,
+                itemBuilder: (_, i) {
+                  final n = systemNotifications[i];
+                  return _buildNotificationCard(
+                    n['title'] ?? "Thông báo",
+                    n['content'] ?? "Đã nhắc hoặc quá hạn",
+                    Icons.notifications,
+                    [Colors.orange, Colors.redAccent],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, IconData icon, Color color) {
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 26),
-        const SizedBox(width: 8),
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildNotificationCard(String title, String subtitle, IconData icon, List<Color> gradientColors) {
+  Widget _buildNotificationCard(
+      String title, String subtitle, IconData icon, List<Color> gradientColors) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        gradient: LinearGradient(
+          colors: gradientColors,
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
       ),
       child: Row(
         children: [
@@ -88,9 +134,14 @@ class _NotificationPageState extends State<NotificationPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16)),
                 const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                Text(subtitle,
+                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
               ],
             ),
           ),

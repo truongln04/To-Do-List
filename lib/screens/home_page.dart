@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/task_model.dart';
 import '../services/task_service.dart';
+import '../services/subtask_service.dart';
 import 'notificationPage.dart';
 import 'task_detail_page.dart';
 import 'overview_page.dart';
@@ -30,6 +32,31 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
+  String _formatNow() {
+    final now = DateTime.now();
+    return DateFormat('dd/MM/yyyy HH:mm').format(now);
+  }
+
+  String _formatDateTimeString(String? raw) {
+    if (raw == null || raw.isEmpty) return "";
+    try {
+      // Một số chuỗi có thể đã ở dạng "2026-04-20 21:11:00.000"
+      // Thử parse linh hoạt
+      DateTime dt = DateTime.parse(raw);
+      return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+    } catch (_) {
+      // Nếu parse thất bại, cố gắng loại bỏ phần milliseconds nếu có
+      try {
+        final cleaned = raw.split('.').first;
+        DateTime dt = DateTime.parse(cleaned);
+        return DateFormat('dd/MM/yyyy HH:mm').format(dt);
+      } catch (_) {
+        // fallback: trả về raw nhưng loại bỏ .000 nếu có
+        return raw.replaceAll('.000', '');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final percent = stats["total"] == 0
@@ -52,7 +79,8 @@ class _HomePageState extends State<HomePage> {
                     children: [
                       const Text("Xin chào, Trường 👋",
                           style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                      Text("Hôm nay, ${DateTime.now().day}/${DateTime.now().month}"),
+                      Text("Hôm nay, ${_formatNow()}",
+                          style: const TextStyle(color: Colors.black54)),
                     ],
                   ),
                   IconButton(
@@ -189,7 +217,6 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
-
   }
 
   /// Hiển thị từng task
@@ -210,7 +237,7 @@ class _HomePageState extends State<HomePage> {
               categoryIcon: categoryIcon,
             ),
           ),
-        ).then((value) => _loadData()); // load lại dữ liệu sau khi quay về
+        ).then((value) => _loadData());
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -229,20 +256,72 @@ class _HomePageState extends State<HomePage> {
                   value: t.status == 1,
                   activeColor: Colors.deepPurple,
                   onChanged: (v) async {
+                    // Cập nhật trạng thái cha
                     t.status = v! ? 1 : 0;
                     await TaskService.update(t);
+
+                    // Đồng bộ subtasks theo trạng thái cha
+                    final subs = await SubTaskService.getByTask(t.id!);
+                    for (var s in subs) {
+                      s.isDone = t.status; // 0 = chưa xong, 1 = đã xong
+                      await SubTaskService.update(s);
+                    }
+
                     _loadData();
                   },
                 ),
+
                 Expanded(
                   child: Text(t.title,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
                 ),
-                Text(t.deadline ?? "",
-                    style: const TextStyle(color: Colors.black54)),
+                Text(
+                  _formatDateTimeString(t.deadline),
+                  style: const TextStyle(color: Colors.black54),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
+
+            // Thanh tiến độ subtask (Linear, rounded)
+            FutureBuilder<Map<String, int>>(
+              future: SubTaskService.getProgress(t.id!),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!["total"] == 0) {
+                  return const SizedBox();
+                }
+                final done = snapshot.data!["done"]!;
+                final total = snapshot.data!["total"]!;
+                final percent = total == 0 ? 0.0 : done / total;
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: percent,
+                        minHeight: 8,
+                        backgroundColor: Colors.grey.shade300,
+                        color: Colors.blueAccent,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text("$done/$total công việc con",
+                            style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                        const SizedBox(width: 8),
+                        Text("${(percent * 100).toInt()}%",
+                            style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                );
+              },
+            ),
+
             Row(
               children: [
                 Container(
@@ -283,7 +362,8 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
-}
+  }
+
   /// Icon theo danh mục
   IconData _categoryIcon(String? name) {
     switch (name) {

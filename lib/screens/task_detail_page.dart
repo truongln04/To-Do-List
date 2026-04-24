@@ -188,9 +188,26 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           onChanged: (v) async {
             sub.isDone = v! ? 1 : 0;
             await SubTaskService.update(sub);
+
+            // Sau khi update subtask, kiểm tra lại trạng thái cha
+            final subs = await SubTaskService.getByTask(task.id!);
+
+            final hasDone = subs.any((s) => s.isDone == 1);
+            final hasNotDone = subs.any((s) => s.isDone == 0);
+
+            if (hasDone && hasNotDone) {
+              task.status = 2; // Đang thực hiện
+            } else if (hasNotDone && !hasDone) {
+              task.status = 0; // Chưa xong
+            } else if (hasDone && !hasNotDone) {
+              task.status = 1; // Hoàn thành
+            }
+
+            await TaskService.update(task);
             await _updateProgress();
             _loadSubTasks();
           },
+
         ),
         title: Text(sub.title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Column(
