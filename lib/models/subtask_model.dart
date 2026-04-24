@@ -32,14 +32,33 @@ class SubTask {
     'reminder_time': reminderTime,
   };
 
-  factory SubTask.fromMap(Map<String, dynamic> m) => SubTask(
-    id: m['id'],
-    taskId: m['task_id'],
-    title: m['title'],
-    description: m['description'],
-    deadline: m['deadline'],
-    isDone: m['is_done'],
-    isReminder: m['is_reminder'],
-    reminderTime: m['reminder_time'],
-  );
+  // factory SubTask.fromMap(Map<String, dynamic> m) => SubTask(
+  //   id: m['id'],
+  //   taskId: m['task_id'],
+  //   title: m['title'],
+  //   description: m['description'],
+  //   deadline: m['deadline'],
+  //   isDone: m['is_done'],
+  //   isReminder: m['is_reminder'],
+  //   reminderTime: m['reminder_time'],
+  // );
+  factory SubTask.fromMap(Map<String, dynamic> m) {
+    int? _parseInt(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      return int.tryParse(v.toString());
+    }
+
+    return SubTask(
+      id: _parseInt(m['id'] ?? m['subtaskId']),
+      taskId: _parseInt(m['task_id'] ?? m['taskId']) ?? 0,
+      title: m['title']?.toString() ?? '',
+      description: m['description']?.toString(),
+      deadline: m['deadline']?.toString(),
+      isDone: _parseInt(m['is_done'] ?? m['isDone']) ?? 0,
+      isReminder: _parseInt(m['is_reminder']) ?? 0,
+      reminderTime: m['reminder_time']?.toString(),
+    );
+  }
+
 }

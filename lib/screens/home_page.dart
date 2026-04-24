@@ -388,9 +388,9 @@ class _HomePageState extends State<HomePage> {
       case 3:
         return Icons.flash_on; // Cao
       case 2:
-        return Icons.hourglass_bottom; // Trung bình
+        return Icons.flash_on; // Trung bình
       case 1:
-        return Icons.check_circle; // Thấp
+        return Icons.flash_on; // Thấp
       default:
         return Icons.help_outline;
     }

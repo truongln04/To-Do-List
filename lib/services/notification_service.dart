@@ -28,7 +28,6 @@ class NotificationService {
   static Future<List<AppNotification>> getAll() async {
     final db = await DBHelper.db;
     final res = await db.query('notifications', orderBy: 'notify_time ASC');
-
     return res.map((e) => AppNotification.fromMap(e)).toList();
   }
 
@@ -54,9 +53,8 @@ class NotificationService {
       DateTime date, {
         int? taskId,
         int? subtaskId,
-        required int type, // 1 = task, 2 = subtask
+        required int type, // 0 = system, 1 = task, 2 = subtask
       }) async {
-    /// 🔔 ĐẶT LỊCH NOTIFICATION
     await _plugin.zonedSchedule(
       id,
       title,
@@ -75,7 +73,6 @@ class NotificationService {
       UILocalNotificationDateInterpretation.absoluteTime,
     );
 
-    /// 💾 LƯU DB
     final noti = AppNotification(
       taskId: taskId,
       subtaskId: subtaskId,
@@ -85,67 +82,68 @@ class NotificationService {
     );
 
     final insertedId = await insert(noti);
-    print(
-        "✅ Inserted notification with id: $insertedId, taskId: $taskId, time: ${date
-            .toString()}");
+    print("✅ Inserted notification with id: $insertedId, type: $type");
   }
 
-    /// ================= CANCEL =================
+  /// ================= CANCEL =================
   static Future cancel(int id) async {
     await _plugin.cancel(id);
   }
 
-  /// ================= CANCEL ALL =================
   static Future cancelAll() async {
     await _plugin.cancelAll();
   }
 
+  /// ================= QUERIES =================
 
+  // Lấy thông báo hệ thống (type = 0)
   static Future<List<Map<String, dynamic>>> getSystemNotifications() async {
     final db = await DBHelper.db;
-    return await db.query('system_notifications', orderBy: 'created_at DESC');
-  }
-
-  static Future<List<Map<String, dynamic>>> getTaskNotifications() async {
-    final db = await DBHelper.db;
-    return await db.rawQuery('''
-    SELECT n.id, n.task_id as taskId, n.notify_time,
-           t.title, t.deadline,
-           c.id as categoryId, c.name as categoryName
-    FROM notifications n
-    LEFT JOIN tasks t ON n.task_id = t.id
-    LEFT JOIN categories c ON t.category_id = c.id
-    ORDER BY n.notify_time ASC
-  ''');
-  }
-  static Future<List<Map<String, dynamic>>> getFullNotifications() async {
-    final db = await DBHelper.db;
-    return await db.rawQuery('''
-    SELECT n.id, n.notify_time, n.type, n.is_sent,
-           n.task_id, t.title as taskTitle, t.deadline,
-           n.subtask_id, s.title as subtaskTitle,
-           c.id as categoryId, c.name as categoryName
-    FROM notifications n
-    LEFT JOIN tasks t ON n.task_id = t.id
-    LEFT JOIN subtasks s ON n.subtask_id = s.id
-    LEFT JOIN categories c ON t.category_id = c.id
-    ORDER BY n.notify_time ASC
-  ''');
-  }
-
-
-
-  // Xóa thông báo theo taskId
-  static Future deleteByTaskId(int taskId) async {
-    final db = await DBHelper.db;
-    await db.delete(
+    return await db.query(
       'notifications',
-      where: 'task_id = ?',
-      whereArgs: [taskId],
+      where: 'type = ?',
+      whereArgs: [0],
+      orderBy: 'notify_time DESC',
     );
   }
 
-// Update thời gian nhắc
+  // Lấy thông báo công việc (type = 1 hoặc 2)
+  static Future<List<Map<String, dynamic>>> getTaskNotifications() async {
+    final db = await DBHelper.db;
+    return await db.rawQuery('''
+      SELECT n.id, n.task_id as taskId, n.notify_time,
+             t.title, t.deadline,
+             c.id as categoryId, c.name as categoryName
+      FROM notifications n
+      LEFT JOIN tasks t ON n.task_id = t.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      WHERE n.type IN (1,2)
+      ORDER BY n.notify_time ASC
+    ''');
+  }
+
+  static Future<List<Map<String, dynamic>>> getFullNotifications() async {
+    final db = await DBHelper.db;
+    return await db.rawQuery('''
+      SELECT n.id, n.notify_time, n.type, n.is_sent,
+             n.task_id, t.title as taskTitle, t.deadline,
+             n.subtask_id, s.title as subtaskTitle,
+             c.id as categoryId, c.name as categoryName
+      FROM notifications n
+      LEFT JOIN tasks t ON n.task_id = t.id
+      LEFT JOIN subtasks s ON n.subtask_id = s.id
+      LEFT JOIN categories c ON t.category_id = c.id
+      ORDER BY n.notify_time ASC
+    ''');
+  }
+
+  /// ================= DELETE =================
+  static Future deleteNotification(int id) async {
+    final db = await DBHelper.db;
+    await db.delete('notifications', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// ================= UPDATE =================
   static Future updateNotifyTime(int taskId, String newTime) async {
     final db = await DBHelper.db;
     await db.update(
@@ -155,5 +153,4 @@ class NotificationService {
       whereArgs: [taskId],
     );
   }
-
 }

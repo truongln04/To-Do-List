@@ -19,13 +19,17 @@ class _NotificationPageState extends State<NotificationPage> {
   void initState() {
     super.initState();
     _loadNotifications();
-
   }
 
   void _loadNotifications() async {
     systemNotifications = await NotificationService.getSystemNotifications();
     taskNotifications = await NotificationService.getTaskNotifications();
     setState(() {});
+  }
+
+  Future<void> _deleteNotification(int id) async {
+    await NotificationService.deleteNotification(id);
+    _loadNotifications();
   }
 
   @override
@@ -42,7 +46,7 @@ class _NotificationPageState extends State<NotificationPage> {
           flexibleSpace: Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)], // header gradient
+                colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -51,40 +55,71 @@ class _NotificationPageState extends State<NotificationPage> {
           elevation: 0,
           bottom: const TabBar(
             tabs: [
-              Tab(icon: Icon(Icons.task_alt), text: "Công việc"),
-              Tab(icon: Icon(Icons.notifications_active), text: "Hệ thống"),
+              Tab(icon: Icon(Icons.notifications_active), text: "Nhắc nhở"),
+              Tab(icon: Icon(Icons.notifications), text: "Thông báo"),
             ],
           ),
         ),
         body: Container(
-          color: Colors.white, // nền trắng cho nội dung
+          color: Colors.white,
           child: TabBarView(
             children: [
               // Panel công việc
-              FutureBuilder(
-                future: NotificationService.getFullNotifications(),
-                builder: (_, snapshot) {
-                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                  final notis = snapshot.data!;
-                  if (notis.isEmpty) return const Center(child: Text("Không có thông báo"));
-                  return ListView.builder(
-                    itemCount: notis.length,
-                    itemBuilder: (_, i) {
-                      final n = notis[i];
-                      final dt = DateTime.tryParse(n['notify_time']);
-                      final timeStr = dt != null ? DateFormat("dd/MM/yyyy HH:mm").format(dt) : "";
+              taskNotifications.isEmpty
+                  ? const Center(child: Text("Không có thông báo nhắc nhở"))
+                  : ListView.builder(
+                itemCount: taskNotifications.length,
+                itemBuilder: (_, i) {
+                  final n = taskNotifications[i];
+                  final dt = DateTime.tryParse(n['notify_time'] ?? "");
+                  final timeStr = dt != null
+                      ? DateFormat("dd/MM/yyyy HH:mm").format(dt)
+                      : "";
 
-                      return ListTile(
-                        leading: const Icon(Icons.notifications, color: Colors.blue),
-                        title: Text(n['taskTitle'] ?? n['subtaskTitle'] ?? "Công việc"),
-                        subtitle: Text("Danh mục: ${n['categoryName'] ?? ""}\nThời gian: $timeStr"),
-                      );
-                    },
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 6),
+                    child: ListTile(
+                      leading: const Icon(Icons.notifications_active,
+                          color: Colors.blue),
+                      title: Text(
+                        n['title'] ?? "Nhắc nhở",
+                        style:
+                        const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                          "Danh mục: ${n['categoryName'] ?? ""}\nThời gian: $timeStr"),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete,
+                            color: Colors.redAccent),
+                        onPressed: () async {
+                          if (n['id'] != null) {
+                            await _deleteNotification(n['id']);
+                          }
+                        },
+                      ),
+                      onTap: () async {
+                        // convert Map -> Task để điều hướng
+                        final taskObj = Task.fromMap(n as Map<String, dynamic>);
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TaskDetailPage(
+                              task: taskObj,
+                              categoryId: taskObj.categoryId ?? 0,
+                              categoryName: taskObj.categoryName ?? "Không có danh mục",
+                            ),
+                          ),
+                        );
+                        if (result == true) {
+                          _loadNotifications();
+                        }
+                      },
+
+                    ),
                   );
                 },
               ),
-
-
 
               // Panel hệ thống
               systemNotifications.isEmpty
@@ -94,58 +129,68 @@ class _NotificationPageState extends State<NotificationPage> {
                 itemCount: systemNotifications.length,
                 itemBuilder: (_, i) {
                   final n = systemNotifications[i];
-                  return _buildNotificationCard(
-                    n['title'] ?? "Thông báo",
-                    n['content'] ?? "Đã nhắc hoặc quá hạn",
-                    Icons.notifications,
-                    [Colors.orange, Colors.redAccent],
+                  final dt = DateTime.tryParse(n['notify_time'] ?? "");
+                  final timeStr = dt != null
+                      ? DateFormat("dd/MM/yyyy HH:mm").format(dt)
+                      : "";
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Colors.orange, Colors.redAccent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: const [
+                        BoxShadow(color: Colors.black12, blurRadius: 6)
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.white.withOpacity(0.2),
+                          child: const Icon(Icons.notifications,
+                              color: Colors.white),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(n['title'] ?? "Thông báo",
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16)),
+                              const SizedBox(height: 4),
+                              Text(
+                                  "${n['content'] ?? "Đã nhắc hoặc quá hạn"}\n$timeStr",
+                                  style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete,
+                              color: Colors.white),
+                          onPressed: () async {
+                            if (n['id'] != null) {
+                              await _deleteNotification(n['id']);
+                            }
+                          },
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationCard(
-      String title, String subtitle, IconData icon, List<Color> gradientColors) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: gradientColors,
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: Colors.white.withOpacity(0.2),
-            child: Icon(icon, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(subtitle,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13)),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

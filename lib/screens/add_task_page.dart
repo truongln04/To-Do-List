@@ -197,34 +197,56 @@ class _AddTaskPageState extends State<AddTaskPage> {
       reminderTime: notifyTime?.toIso8601String(),
     );
 
-    final taskId = await TaskService.insert(task);
+    int? taskId;
+    try {
+      taskId = await TaskService.insert(task);
+    } catch (e) {
+      // Lưu task thất bại
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Lưu công việc thất bại: $e")),
+      );
+      return;
+    }
 
-    // xử lý notification
+    // xử lý notification trong try/catch để không làm gián đoạn điều hướng
     if (reminder && notifyTime != null) {
       if (notifyTime.isAfter(DateTime.now())) {
-        // nếu đã có thông báo thì update, chưa có thì insert
-        await NotificationService.deleteByTaskId(taskId);
-        await NotificationService.schedule(
-          taskId, // dùng taskId làm id
-          "Nhắc việc",
-          task.title,
-          notifyTime,
-          taskId: taskId,
-          type: 1,
-        );
+        try {
+          await NotificationService.schedule(
+            taskId, // dùng taskId làm id
+            "Nhắc việc",
+            task.title,
+            notifyTime,
+            taskId: taskId,
+            type: 1,
+          );
+        } on Exception catch (e) {
+          // Bắt lỗi plugin/permission, hiển thị thông báo nhưng không ngăn điều hướng
+          debugPrint("Notification schedule failed: $e");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Không thể tạo thông báo. Kiểm tra quyền ứng dụng.")),
+          );
+          // Nếu muốn: gọi NotificationService.cancel(taskId) để đảm bảo không có rác
+          try {
+            await NotificationService.cancel(taskId);
+          } catch (_) {}
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Thời gian nhắc đã qua, không thể tạo thông báo")),
         );
       }
     } else {
-      // nếu reminder = false thì hủy notification và xóa khỏi DB
-      await NotificationService.cancel(taskId);
-      await NotificationService.deleteByTaskId(taskId);
+      // Nếu reminder = false thì hủy notification (nếu có)
+      try {
+        await NotificationService.cancel(taskId);
+      } catch (_) {}
     }
 
-    Navigator.pop(context, true);
+    // Điều hướng về trang trước, trả true để refresh danh sách
+    if (mounted) Navigator.pop(context, true);
   }
+
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
