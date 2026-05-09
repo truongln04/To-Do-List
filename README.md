@@ -57,19 +57,6 @@
 
 ---
 
-## 📁 Cấu trúc thư mục
-
-```
-lib/
- ├── models/        # Data models (Task, Category, Subtask)
- ├── database/      # SQLite helper
- ├── screens/       # Giao diện màn hình
- ├── widgets/       # Components dùng lại
- └── main.dart
-```
-
----
-
 ## ⚙️ Cài đặt & chạy project
 
 ### 1. Clone project
