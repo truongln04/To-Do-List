@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/custom_icons.dart';
 import '../models/task_model.dart';
 import '../models/subtask_model.dart';
 import '../services/task_service.dart';
@@ -216,6 +217,9 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
 
   /// TASK ITEM
   Widget _taskItem(Task task) {
+    // Lấy custom icon từ model dựa trên categoryName hoặc categoryIconKey
+    final customIcon = getCustomIcon(widget.categoryName);
+
     return InkWell(
       onTap: () async {
         final result = await Navigator.push(
@@ -225,6 +229,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
               task: task,
               categoryId: widget.categoryId,
               categoryName: widget.categoryName,
+              categoryIcon: customIcon.icon, // truyền IconData
             ),
           ),
         );
@@ -315,6 +320,7 @@ class _CategoryDetailPageState extends State<CategoryDetailPage> {
       ),
     );
   }
+
 
   /// BADGE ƯU TIÊN
   Widget _priorityBadge(int p) {

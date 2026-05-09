@@ -38,4 +38,18 @@ class CategoryService {
     return allTasks.where((t) => t.categoryId == categoryId).length;
   }
 
+  static Future<Category?> getById(int id) async {
+    final db = await DBHelper.db; // dùng giống các hàm khác
+    final maps = await db.query(
+      'categories',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (maps.isNotEmpty) {
+      return Category.fromMap(maps.first);
+    }
+    return null;
+  }
+
 }

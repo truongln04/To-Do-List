@@ -107,33 +107,63 @@ class TaskService {
     return maps.map((m) => Task.fromMap(m)).toList();
   }
 
+  // static Future<Map<String, int>> getOverviewStats() async {
+  //   final db = await DBHelper.db;
+  //   final now = DateTime.now();
+  //   final todayStr =
+  //       "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+  //
+  //   // Đã hoàn thành hôm nay
+  //   final done = Sqflite.firstIntValue(await db.rawQuery(
+  //       "SELECT COUNT(*) FROM tasks WHERE status = 1 AND deadline LIKE ?",
+  //       ["$todayStr%"])) ?? 0;
+  //
+  //   // Tổng số hôm nay
+  //   final total = Sqflite.firstIntValue(await db.rawQuery(
+  //       "SELECT COUNT(*) FROM tasks WHERE deadline LIKE ?",
+  //       ["$todayStr%"])) ?? 0;
+  //
+  //   // Quá hạn
+  //   final overdue = Sqflite.firstIntValue(await db.rawQuery(
+  //       "SELECT COUNT(*) FROM tasks WHERE status = 0 AND deadline < ?",
+  //       [now.toIso8601String()])) ?? 0;
+  //
+  //   return {
+  //     "done": done,
+  //     "total": total,
+  //     "overdue": overdue,
+  //   };
+  // }
   static Future<Map<String, int>> getOverviewStats() async {
     final db = await DBHelper.db;
     final now = DateTime.now();
     final todayStr =
         "${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-    // Đã hoàn thành hôm nay
     final done = Sqflite.firstIntValue(await db.rawQuery(
         "SELECT COUNT(*) FROM tasks WHERE status = 1 AND deadline LIKE ?",
         ["$todayStr%"])) ?? 0;
 
-    // Tổng số hôm nay
     final total = Sqflite.firstIntValue(await db.rawQuery(
         "SELECT COUNT(*) FROM tasks WHERE deadline LIKE ?",
         ["$todayStr%"])) ?? 0;
 
-    // Quá hạn
     final overdue = Sqflite.firstIntValue(await db.rawQuery(
         "SELECT COUNT(*) FROM tasks WHERE status = 0 AND deadline < ?",
         [now.toIso8601String()])) ?? 0;
+
+    final doing = Sqflite.firstIntValue(await db.rawQuery(
+        "SELECT COUNT(*) FROM tasks WHERE status = 2 AND deadline LIKE ?",
+        ["$todayStr%"])) ?? 0;
 
     return {
       "done": done,
       "total": total,
       "overdue": overdue,
+      "doing": doing,
     };
   }
+
   static Future<List<Task>> searchTasks({
     String? query,
     String? category,

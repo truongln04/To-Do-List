@@ -17,6 +17,7 @@ class DBHelper {
       path,
       version: 1,
       onCreate: (db, version) async {
+        await db.execute('PRAGMA foreign_keys = ON');
 
         await db.execute('''
         CREATE TABLE categories (
@@ -40,7 +41,8 @@ class DBHelper {
           is_reminder INTEGER DEFAULT 0,
           reminder_time TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-          updated_at TEXT
+          updated_at TEXT,
+          FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
         )
         ''');
 
@@ -54,7 +56,8 @@ class DBHelper {
           is_done INTEGER DEFAULT 0,
           is_reminder INTEGER DEFAULT 0,
           reminder_time TEXT,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
         )
         ''');
 
@@ -66,7 +69,9 @@ class DBHelper {
           notify_time TEXT,
           type INTEGER,
           is_sent INTEGER DEFAULT 0,
-          created_at TEXT DEFAULT CURRENT_TIMESTAMP
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+          FOREIGN KEY (subtask_id) REFERENCES subtasks(id) ON DELETE CASCADE
         )
         ''');
       },

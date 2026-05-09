@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../models/custom_icons.dart';
 import '../services/stats_service.dart';
 import '../models/task_model.dart';
 import '../models/subtask_model.dart';
@@ -301,6 +302,7 @@ class _StatsPageState extends State<StatsPage> {
       isScrollControlled: true,
       builder: (_) {
         final parent = tasks.firstWhere((t) => t.id == s.taskId, orElse: () => Task(id: null, title: '', priority: 2));
+        final customIcon = getCustomIcon(parent.categoryName);
         return Padding(
           padding: MediaQuery.of(context).viewInsets,
           child: Container(
@@ -351,7 +353,7 @@ class _StatsPageState extends State<StatsPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => TaskDetailPage(task: parent, categoryId: parent.categoryId ?? 0, categoryName: parent.categoryName ?? ""),
+                        builder: (_) => TaskDetailPage(task: parent, categoryId: parent.categoryId ?? 0, categoryName: parent.categoryName ?? "",categoryIcon: customIcon.icon,),
                       ),
                     );
                   },
@@ -639,31 +641,6 @@ class _StatsPageState extends State<StatsPage> {
                 ),
               ),
 
-              const SizedBox(height: 20),
-
-              // Row(
-              //   children: [
-              //     Expanded(
-              //       child: TextField(
-              //         decoration: InputDecoration(
-              //           prefixIcon: const Icon(Icons.search),
-              //           hintText: "Tìm theo tiêu đề hoặc danh mục...",
-              //           filled: true,
-              //           fillColor: Colors.grey[100],
-              //           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              //         ),
-              //         onChanged: (v) => setState(() => searchQuery = v),
-              //       ),
-              //     ),
-              //     const SizedBox(width: 12),
-              //     DropdownButton<String>(
-              //       value: selectedSort,
-              //       items: ["Deadline", "Priority", "Status"].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-              //       onChanged: (v) => setState(() => selectedSort = v ?? "Deadline"),
-              //     ),
-              //   ],
-              // ),
-
               const SizedBox(height: 12),
 
               Wrap(
@@ -713,6 +690,7 @@ class _StatsPageState extends State<StatsPage> {
                 final deadline = _formatDate(item.deadline);
                 final priority = _priorityFor(item);
                 final status = _statusFor(item);
+                final customIcon = getCustomIcon(catName);
 
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 6),
@@ -742,7 +720,8 @@ class _StatsPageState extends State<StatsPage> {
                     ),
                     onTap: () async {
                       if (isTask) {
-                        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => TaskDetailPage(task: item as Task, categoryId: item.categoryId ?? 0, categoryName: item.categoryName ?? "")));
+
+                        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => TaskDetailPage(task: item as Task, categoryId: item.categoryId ?? 0, categoryName: item.categoryName ?? "",categoryIcon: customIcon.icon,)));
                         if (result == true) await _loadStats();
                       } else {
                         _showSubtaskDetailModal(item as SubTask);

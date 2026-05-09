@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/custom_icons.dart';
 import '../models/task_model.dart';
 import '../services/subtask_service.dart';
 import 'task_detail_page.dart';
@@ -121,15 +122,15 @@ class OverviewPage extends StatelessWidget {
         child: Column(
           children: [
             // Summary cards
-            Row(
-              children: [
-                _statCard("Đã hoàn thành", stats["done"] ?? 0, Colors.green),
-                const SizedBox(width: 12),
-                _statCard("Còn lại", (stats["total"] ?? 0) - (stats["done"] ?? 0), Colors.orange),
-                const SizedBox(width: 12),
-                _statCard("Quá hạn", stats["overdue"] ?? 0, Colors.red),
-              ],
-            ),
+            // Row(
+            //   children: [
+            //     _statCard("Đã hoàn thành", stats["done"] ?? 0, Colors.green),
+            //     const SizedBox(width: 12),
+            //     _statCard("Còn lại", (stats["total"] ?? 0) - (stats["done"] ?? 0), Colors.orange),
+            //     const SizedBox(width: 12),
+            //     _statCard("Quá hạn", stats["overdue"] ?? 0, Colors.red),
+            //   ],
+            // ),
             const SizedBox(height: 18),
 
             // Section header
@@ -216,6 +217,7 @@ class OverviewPage extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () async {
+          final customIcon = getCustomIcon(t.categoryName);
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
@@ -223,6 +225,7 @@ class OverviewPage extends StatelessWidget {
                 task: t,
                 categoryId: t.categoryId ?? 0,
                 categoryName: t.categoryName ?? "Không có danh mục",
+                categoryIcon: customIcon.icon,
               ),
             ),
           );

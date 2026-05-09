@@ -13,12 +13,14 @@ class TaskDetailPage extends StatefulWidget {
   final String categoryName;
   final IconData categoryIcon;
 
+
   const TaskDetailPage({
     super.key,
     required this.task,
     required this.categoryId,
     required this.categoryName,
-    this.categoryIcon = Icons.work,
+    required this.categoryIcon,
+
   });
 
   @override
@@ -141,6 +143,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               ],
             ),
 
+
             const SizedBox(height: 16),
 
             if (totalCount > 0)
@@ -242,9 +245,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     Color color;
     IconData icon;
     switch (priority) {
-      case 3: text = "Cao"; color = Colors.red; icon = Icons.flash_on; break;
-      case 2: text = "Trung bình"; color = Colors.orange; icon = Icons.hourglass_bottom; break;
-      case 1: text = "Thấp"; color = Colors.green; icon = Icons.check_circle; break;
+      case 3: text = "Cao"; color = Colors.red; icon = Icons.flag; break;
+      case 2: text = "Trung bình"; color = Colors.orange; icon = Icons.flag; break;
+      case 1: text = "Thấp"; color = Colors.green; icon = Icons.flag; break;
       default: text = "Không"; color = Colors.grey; icon = Icons.help_outline;
     }
     return Container(

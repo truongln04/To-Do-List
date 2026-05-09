@@ -132,7 +132,7 @@ class _AddTaskPageState extends State<AddTaskPage> {
               DropdownButtonFormField<String>(
                 value: reminderTime,
                 decoration: _boxDecoration(label: "Thời gian nhắc"),
-                items: ["Trước 1 phút", "Trước 1 giờ", "Trước 1 ngày"]
+                items: ["Trước 3 phút", "Trước 1 giờ", "Trước 1 ngày"]
                     .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                     .toList(),
                 onChanged: (v) => setState(() => reminderTime = v!),
@@ -177,14 +177,15 @@ class _AddTaskPageState extends State<AddTaskPage> {
     // thời gian nhắc
     DateTime? notifyTime;
     if (reminder && dueDate != null) {
-      if (reminderTime == "Trước 1 phút") {
-        notifyTime = dueDate!.subtract(const Duration(minutes: 1));
+      if (reminderTime == "Trước 3 phút") {
+        notifyTime = dueDate!.subtract(const Duration(minutes: 3));
       } else if (reminderTime == "Trước 1 giờ") {
         notifyTime = dueDate!.subtract(const Duration(hours: 1));
       } else {
         notifyTime = dueDate!.subtract(const Duration(days: 1));
       }
     }
+    debugPrint("NotifyTime: $notifyTime, Now: ${DateTime.now()}");
 
     // tạo task mới
     final task = Task(

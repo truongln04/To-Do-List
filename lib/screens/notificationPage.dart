@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/custom_icons.dart';
 import '../services/notification_service.dart';
 import 'task_detail_page.dart';
 import '../models/task_model.dart';
@@ -101,6 +102,8 @@ class _NotificationPageState extends State<NotificationPage> {
                       onTap: () async {
                         // convert Map -> Task để điều hướng
                         final taskObj = Task.fromMap(n as Map<String, dynamic>);
+                        final customIcon = getCustomIcon(taskObj.categoryName);
+
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -108,6 +111,7 @@ class _NotificationPageState extends State<NotificationPage> {
                               task: taskObj,
                               categoryId: taskObj.categoryId ?? 0,
                               categoryName: taskObj.categoryName ?? "Không có danh mục",
+                              categoryIcon: customIcon.icon,
                             ),
                           ),
                         );

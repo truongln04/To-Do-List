@@ -9,19 +9,43 @@ import 'screens/category_page.dart';
 import 'screens/stats_page.dart';
 import 'screens/add_task_page.dart';
 
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// 🔥 INIT NOTIFICATION
-  await NotificationService.init();
-
-  /// 🔥 XIN QUYỀN ANDROID 13+
+  // 🔥 XIN QUYỀN ANDROID 13+
   if (await Permission.notification.isDenied) {
     await Permission.notification.request();
   }
 
+  // 🔥 INIT TIMEZONE
+  tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
+
+  // 🔥 INIT NOTIFICATION
+  await NotificationService.init();
+// Test thông báo ngay khi app khởi động
+  // Test notification sau 1 phút
+  NotificationService.showNow("Test Immediate", "Thông báo hiện ngay");
+
+  final scheduled = tz.TZDateTime.now(tz.local).add(const Duration(minutes: 1));
+
+  await NotificationService.schedule(
+    999,
+    "Test Notification",
+    "Thông báo thử nghiệm",
+    scheduled,
+  );
+
+  debugPrint("Scheduled test notification at $scheduled");
+
   runApp(const MyApp());
+
+
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -65,7 +89,7 @@ class _MainAppState extends State<MainApp> {
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
           gradient: LinearGradient(
-            colors: [Color(0xFF5B8CFF), Color(0xFF9B59B6)],
+            colors: [Color(0xFF00C9FF), Color(0xFF92FE9D)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -99,7 +123,7 @@ class _MainAppState extends State<MainApp> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _item(Icons.home, "Trang chủ", 0),
-              _item(Icons.task, "Task", 1),
+              _item(Icons.task, "Công việc", 1),
 
               const SizedBox(width: 40),
 

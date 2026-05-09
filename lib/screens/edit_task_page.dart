@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/task_model.dart';
 import '../models/category_model.dart';
+import '../services/notification_service.dart';
 import '../services/task_service.dart';
 import '../services/category_service.dart';
 
@@ -141,7 +142,12 @@ class _EditTaskPageState extends State<EditTaskPage> {
   }
 
   void _updateTask() async {
-    if (titleController.text.isEmpty) return;
+    if (titleController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Tiêu đề không được để trống")),
+      );
+      return;
+    }
 
     int prio = 2;
     if (priority == "Cao") prio = 3;
@@ -149,32 +155,75 @@ class _EditTaskPageState extends State<EditTaskPage> {
 
     String? deadline = dueDate?.toIso8601String();
 
+    DateTime? notifyTime;
     String? remindTime;
     if (reminder && dueDate != null) {
       if (reminderTime == "Trước 30 phút") {
-        remindTime = dueDate!.subtract(const Duration(minutes: 30)).toIso8601String();
+        notifyTime = dueDate!.subtract(const Duration(minutes: 30));
       } else if (reminderTime == "Trước 1 giờ") {
-        remindTime = dueDate!.subtract(const Duration(hours: 1)).toIso8601String();
+        notifyTime = dueDate!.subtract(const Duration(hours: 1));
       } else {
-        remindTime = dueDate!.subtract(const Duration(days: 1)).toIso8601String();
+        notifyTime = dueDate!.subtract(const Duration(days: 1));
       }
+      remindTime = notifyTime.toIso8601String();
     }
 
-    await TaskService.update(
-      Task(
-        id: widget.task.id,
-        title: titleController.text.trim(),
-        description: descController.text.trim(),
-        deadline: deadline,
-        priority: prio,
-        categoryId: category?.id,
-        isReminder: reminder ? 1 : 0,
-        reminderTime: remindTime,
-      ),
+    final updatedTask = Task(
+      id: widget.task.id,
+      title: titleController.text.trim(),
+      description: descController.text.trim(),
+      deadline: deadline,
+      priority: prio,
+      categoryId: category?.id,
+      isReminder: reminder ? 1 : 0,
+      reminderTime: remindTime,
     );
 
-    Navigator.pop(context, true); // trả về true để trang trước reload
+    try {
+      await TaskService.update(updatedTask);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Cập nhật công việc thất bại: $e")),
+      );
+      return;
+    }
+
+    // xử lý notification
+    if (reminder && notifyTime != null) {
+      if (notifyTime.isAfter(DateTime.now())) {
+        try {
+          await NotificationService.schedule(
+            updatedTask.id!,
+            "Nhắc việc",
+            updatedTask.title,
+            notifyTime,
+            taskId: updatedTask.id!,
+            type: 1,
+          );
+        } on Exception catch (e) {
+          debugPrint("Notification schedule failed: $e");
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Không thể tạo thông báo. Kiểm tra quyền ứng dụng.")),
+          );
+          try {
+            await NotificationService.cancel(updatedTask.id!);
+          } catch (_) {}
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Thời gian nhắc đã qua, không thể tạo thông báo")),
+        );
+      }
+    } else {
+      // reminder = false → hủy notification
+      try {
+        await NotificationService.cancel(updatedTask.id!);
+      } catch (_) {}
+    }
+
+    if (mounted) Navigator.pop(context, true);
   }
+
 
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 6),

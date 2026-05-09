@@ -6,17 +6,103 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _plugin =
+  static final FlutterLocalNotificationsPlugin _notifications =
   FlutterLocalNotificationsPlugin();
 
   /// ================= INIT =================
-  static Future init() async {
+  static Future<void> init() async {
+    // Khởi tạo timezone
     tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Ho_Chi_Minh'));
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: android);
+    // Android settings
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    await _plugin.initialize(settings);
+    // iOS settings
+    const DarwinInitializationSettings iosSettings =
+    DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const InitializationSettings settings =
+    InitializationSettings(android: androidSettings, iOS: iosSettings);
+
+    await _notifications.initialize(settings);
+
+    // Tạo channel Android
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'task_channel', // ID phải trùng với ID trong NotificationDetails
+      'Task Notifications',
+      description: 'Thông báo nhắc việc',
+      importance: Importance.max,
+    );
+
+    await _notifications
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    // Xin quyền iOS
+    await _notifications
+        .resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>()
+        ?.requestPermissions(alert: true, badge: true, sound: true);
+  }
+
+  /// ================= SCHEDULE =================
+  static Future<void> schedule(
+      int id,
+      String title,
+      String body,
+      DateTime scheduledTime, {
+        int? taskId,
+        int? type,
+      }) async {
+    await _notifications.zonedSchedule(
+      id,
+      title,
+      body,
+      tz.TZDateTime.from(scheduledTime, tz.local),
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'task_channel',
+          'Task Notifications',
+          channelDescription: 'Thông báo nhắc việc',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      // androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation:
+      UILocalNotificationDateInterpretation.absoluteTime,
+    );
+  }
+
+  /// ================= SHOW NOW =================
+  static Future<void> showNow(String title, String body) async {
+    const androidDetails = AndroidNotificationDetails(
+      'task_channel',
+      'Task Notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const details = NotificationDetails(android: androidDetails);
+
+    await _notifications.show(0, title, body, details);
+  }
+
+  /// ================= CANCEL =================
+  static Future<void> cancel(int id) async {
+    await _notifications.cancel(id);
+  }
+
+  static Future<void> cancelAll() async {
+    await _notifications.cancelAll();
   }
 
   /// ================= DB =================
@@ -31,68 +117,7 @@ class NotificationService {
     return res.map((e) => AppNotification.fromMap(e)).toList();
   }
 
-  /// ================= SHOW NOW =================
-  static Future showNow(String title, String body) async {
-    const androidDetails = AndroidNotificationDetails(
-      'task_channel',
-      'Task Notification',
-      importance: Importance.max,
-      priority: Priority.high,
-    );
 
-    const details = NotificationDetails(android: androidDetails);
-
-    await _plugin.show(0, title, body, details);
-  }
-
-  /// ================= SCHEDULE =================
-  static Future schedule(
-      int id,
-      String title,
-      String body,
-      DateTime date, {
-        int? taskId,
-        int? subtaskId,
-        required int type, // 0 = system, 1 = task, 2 = subtask
-      }) async {
-    await _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      tz.TZDateTime.from(date, tz.local),
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'task_channel',
-          'Task Notification',
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
-    );
-
-    final noti = AppNotification(
-      taskId: taskId,
-      subtaskId: subtaskId,
-      notifyTime: date.toString(),
-      type: type,
-      isSent: 0,
-    );
-
-    final insertedId = await insert(noti);
-    print("✅ Inserted notification with id: $insertedId, type: $type");
-  }
-
-  /// ================= CANCEL =================
-  static Future cancel(int id) async {
-    await _plugin.cancel(id);
-  }
-
-  static Future cancelAll() async {
-    await _plugin.cancelAll();
-  }
 
   /// ================= QUERIES =================
 

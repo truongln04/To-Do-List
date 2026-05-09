@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../models/category_model.dart';
+import '../models/custom_icons.dart';
 import '../models/task_model.dart';
+import '../services/category_service.dart';
 import '../services/task_service.dart';
 import '../services/subtask_service.dart';
 import 'notificationPage.dart';
@@ -160,14 +163,17 @@ class _HomePageState extends State<HomePage> {
                                 style: const TextStyle(color: Colors.white)),
                           ],
                         ),
+
+
                         Row(
                           children: [
-                            const Icon(Icons.access_time, color: Colors.orange),
+                            const Icon(Icons.play_arrow, color: Colors.blue),
                             const SizedBox(width: 6),
-                            Text("Còn lại: ${stats["total"]! - stats["done"]!}",
+                            Text("Đang làm: ${stats["doing"]}",
                                 style: const TextStyle(color: Colors.white)),
                           ],
                         ),
+
                         Row(
                           children: [
                             const Icon(Icons.warning, color: Colors.red),
@@ -176,6 +182,17 @@ class _HomePageState extends State<HomePage> {
                                 style: const TextStyle(color: Colors.white)),
                           ],
                         ),
+
+                        Row(
+                          children: [
+                            const Icon(Icons.access_time, color: Colors.orange),
+                            const SizedBox(width: 6),
+                            Text("Còn lại: ${stats["total"]! - stats["done"]! - stats["doing"]!}",
+                                style: const TextStyle(color: Colors.white)),
+
+                          ],
+                        ),
+
                       ],
                     )
                   ],
@@ -220,179 +237,347 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Hiển thị từng task
+  // Widget taskItem(Task t) {
+  //   final priorityColor = _priorityColor(t.priority);
+  //   final priorityIcon = _priorityIcon(t.priority);
+  //
+  //   // Lấy icon từ model (ví dụ t.categoryIcon là String key)
+  //   final customIcon = getCustomIcon(cat?.icon);
+  //
+  //   // Kiểm tra quá hạn
+  //   bool isOverdue = false;
+  //   if (t.deadline != null && t.deadline!.isNotEmpty) {
+  //     try {
+  //       final dt = DateTime.parse(t.deadline!);
+  //       if (dt.isBefore(DateTime.now()) && t.status != 1) {
+  //         isOverdue = true;
+  //       }
+  //     } catch (_) {}
+  //   }
+  //
+  //   return InkWell(
+  //     onTap: () {
+  //       Navigator.push(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder: (_) => TaskDetailPage(
+  //             task: t,
+  //             categoryId: t.categoryId ?? 0,
+  //             categoryName: t.categoryName ?? "Không có danh mục",
+  //             categoryIcon: customIcon.icon,
+  //           ),
+  //         ),
+  //       ).then((value) => _loadData());
+  //     },
+  //     child: Container(
+  //       margin: const EdgeInsets.only(bottom: 10),
+  //       padding: const EdgeInsets.all(14),
+  //       decoration: BoxDecoration(
+  //         color: Colors.white,
+  //         borderRadius: BorderRadius.circular(18),
+  //         boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
+  //       ),
+  //       child: Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           Row(
+  //             children: [
+  //               Checkbox(
+  //                 value: t.status == 1,
+  //                 activeColor: Colors.deepPurple,
+  //                 onChanged: (v) async {
+  //                   t.status = v! ? 1 : 0;
+  //                   await TaskService.update(t);
+  //                   final subs = await SubTaskService.getByTask(t.id!);
+  //                   for (var s in subs) {
+  //                     s.isDone = t.status;
+  //                     await SubTaskService.update(s);
+  //                   }
+  //                   _loadData();
+  //                 },
+  //               ),
+  //               Expanded(
+  //                 child: Text(
+  //                   t.title,
+  //                   style: TextStyle(
+  //                     fontWeight: FontWeight.w600,
+  //                     color: isOverdue ? Colors.red : Colors.black,
+  //                   ),
+  //                 ),
+  //               ),
+  //               Text(
+  //                 _formatDateTimeString(t.deadline),
+  //                 style: TextStyle(
+  //                   color: isOverdue ? Colors.red : Colors.black54,
+  //                   fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //           const SizedBox(height: 8),
+  //
+  //           // Thanh tiến độ subtask (Linear, rounded)
+  //           FutureBuilder<Map<String, int>>(
+  //             future: SubTaskService.getProgress(t.id!),
+  //             builder: (context, snapshot) {
+  //               if (!snapshot.hasData || snapshot.data!["total"] == 0) {
+  //                 return const SizedBox();
+  //               }
+  //               final done = snapshot.data!["done"]!;
+  //               final total = snapshot.data!["total"]!;
+  //               final percent = total == 0 ? 0.0 : done / total;
+  //
+  //               return Column(
+  //                 crossAxisAlignment: CrossAxisAlignment.start,
+  //                 children: [
+  //                   ClipRRect(
+  //                     borderRadius: BorderRadius.circular(6),
+  //                     child: LinearProgressIndicator(
+  //                       value: percent,
+  //                       minHeight: 8,
+  //                       backgroundColor: Colors.grey.shade300,
+  //                       color: Colors.blueAccent,
+  //                     ),
+  //                   ),
+  //                   const SizedBox(height: 6),
+  //                   Row(
+  //                     children: [
+  //                       Text("$done/$total công việc con",
+  //                           style: const TextStyle(fontSize: 12, color: Colors.black54)),
+  //                       const SizedBox(width: 8),
+  //                       Text("${(percent * 100).toInt()}%",
+  //                           style: const TextStyle(fontSize: 12, color: Colors.black54)),
+  //                     ],
+  //                   ),
+  //                   const SizedBox(height: 8),
+  //                 ],
+  //               );
+  //             },
+  //           ),
+  //
+  //           Row(
+  //             children: [
+  //               Container(
+  //                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  //                 decoration: BoxDecoration(
+  //                   color: Colors.deepPurple.withOpacity(0.1),
+  //                   borderRadius: BorderRadius.circular(8),
+  //                 ),
+  //                 child: Row(
+  //                   children: [
+  //                     Icon(customIcon.icon, color: Colors.deepPurple, size: 16),
+  //                     const SizedBox(width: 4),
+  //                     Text(t.categoryName ?? "Không có danh mục",
+  //                         style: const TextStyle(
+  //                             color: Colors.deepPurple, fontSize: 12)),
+  //                   ],
+  //                 ),
+  //               ),
+  //               const SizedBox(width: 8),
+  //               Container(
+  //                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  //                 decoration: BoxDecoration(
+  //                   color: priorityColor.withOpacity(0.15),
+  //                   borderRadius: BorderRadius.circular(8),
+  //                 ),
+  //                 child: Row(
+  //                   children: [
+  //                     Icon(priorityIcon, color: priorityColor, size: 16),
+  //                     const SizedBox(width: 4),
+  //                     Text(_priorityText(t.priority),
+  //                         style: TextStyle(color: priorityColor, fontSize: 12)),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ],
+  //           )
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
+
+  /// Hiển thị từng task
   Widget taskItem(Task t) {
     final priorityColor = _priorityColor(t.priority);
     final priorityIcon = _priorityIcon(t.priority);
-    final categoryIcon = _categoryIcon(t.categoryName);
 
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => TaskDetailPage(
-              task: t,
-              categoryId: t.categoryId ?? 0,
-              categoryName: t.categoryName ?? "Không có danh mục",
-              categoryIcon: categoryIcon,
+    return FutureBuilder<Category?>(
+      future: CategoryService.getById(t.categoryId ?? 0),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink(); // chưa load xong thì để trống
+        }
+
+        final cat = snapshot.data!;
+        final customIcon = getCustomIcon(cat.icon);
+
+        // Kiểm tra quá hạn
+        bool isOverdue = false;
+        if (t.deadline != null && t.deadline!.isNotEmpty) {
+          try {
+            final dt = DateTime.parse(t.deadline!);
+            if (dt.isBefore(DateTime.now()) && t.status != 1) {
+              isOverdue = true;
+            }
+          } catch (_) {}
+        }
+
+        return InkWell(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TaskDetailPage(
+                  task: t,
+                  categoryId: t.categoryId ?? 0,
+                  categoryName: cat.name,
+                  categoryIcon: customIcon.icon,
+                ),
+              ),
+            ).then((value) => _loadData());
+          },
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
             ),
-          ),
-        ).then((value) => _loadData());
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5)],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Checkbox(
-                  value: t.status == 1,
-                  activeColor: Colors.deepPurple,
-                  onChanged: (v) async {
-                    // Cập nhật trạng thái cha
-                    t.status = v! ? 1 : 0;
-                    await TaskService.update(t);
+                Row(
+                  children: [
+                    Checkbox(
+                      value: t.status == 1,
+                      activeColor: Colors.deepPurple,
+                      onChanged: (v) async {
+                        t.status = v! ? 1 : 0;
+                        await TaskService.update(t);
+                        final subs = await SubTaskService.getByTask(t.id!);
+                        for (var s in subs) {
+                          s.isDone = t.status;
+                          await SubTaskService.update(s);
+                        }
+                        _loadData();
+                      },
+                    ),
+                    Expanded(
+                      child: Text(
+                        t.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isOverdue ? Colors.red : Colors.black,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      _formatDateTimeString(t.deadline),
+                      style: TextStyle(
+                        color: isOverdue ? Colors.red : Colors.black54,
+                        fontWeight: isOverdue ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
 
-                    // Đồng bộ subtasks theo trạng thái cha
-                    final subs = await SubTaskService.getByTask(t.id!);
-                    for (var s in subs) {
-                      s.isDone = t.status; // 0 = chưa xong, 1 = đã xong
-                      await SubTaskService.update(s);
+                // Thanh tiến độ subtask
+                FutureBuilder<Map<String, int>>(
+                  future: SubTaskService.getProgress(t.id!),
+                  builder: (context, snapshot) {
+                    if (!snapshot.hasData || snapshot.data!["total"] == 0) {
+                      return const SizedBox();
                     }
+                    final done = snapshot.data!["done"]!;
+                    final total = snapshot.data!["total"]!;
+                    final percent = total == 0 ? 0.0 : done / total;
 
-                    _loadData();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: percent,
+                            minHeight: 8,
+                            backgroundColor: Colors.grey.shade300,
+                            color: Colors.blueAccent,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Text("$done/$total công việc con",
+                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            const SizedBox(width: 8),
+                            Text("${(percent * 100).toInt()}%",
+                                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                    );
                   },
                 ),
 
-                Expanded(
-                  child: Text(t.title,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                Text(
-                  _formatDateTimeString(t.deadline),
-                  style: const TextStyle(color: Colors.black54),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Thanh tiến độ subtask (Linear, rounded)
-            FutureBuilder<Map<String, int>>(
-              future: SubTaskService.getProgress(t.id!),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data!["total"] == 0) {
-                  return const SizedBox();
-                }
-                final done = snapshot.data!["done"]!;
-                final total = snapshot.data!["total"]!;
-                final percent = total == 0 ? 0.0 : done / total;
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: percent,
-                        minHeight: 8,
-                        backgroundColor: Colors.grey.shade300,
-                        color: Colors.blueAccent,
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: customIcon.color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(customIcon.icon, color: customIcon.color, size: 16),
+                          const SizedBox(width: 4),
+                          Text(cat.name,
+                              style: TextStyle(color: customIcon.color, fontSize: 12)),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Text("$done/$total công việc con",
-                            style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                        const SizedBox(width: 8),
-                        Text("${(percent * 100).toInt()}%",
-                            style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                      ],
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: priorityColor.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(priorityIcon, color: priorityColor, size: 16),
+                          const SizedBox(width: 4),
+                          Text(_priorityText(t.priority),
+                              style: TextStyle(color: priorityColor, fontSize: 12)),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 8),
                   ],
-                );
-              },
-            ),
-
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.deepPurple.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(categoryIcon, color: Colors.deepPurple, size: 16),
-                      const SizedBox(width: 4),
-                      Text(t.categoryName ?? "Không có danh mục",
-                          style: const TextStyle(
-                              color: Colors.deepPurple, fontSize: 12)),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: priorityColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(priorityIcon, color: priorityColor, size: 16),
-                      const SizedBox(width: 4),
-                      Text(_priorityText(t.priority),
-                          style: TextStyle(color: priorityColor, fontSize: 12)),
-                    ],
-                  ),
-                ),
+                )
               ],
-            )
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  /// Icon theo danh mục
-  IconData _categoryIcon(String? name) {
-    switch (name) {
-      case "Công việc":
-        return Icons.work;
-      case "Học tập":
-        return Icons.school;
-      case "Cá nhân":
-        return Icons.person;
-      case "Sức khỏe":
-        return Icons.favorite;
-      case "Mua sắm":
-        return Icons.shopping_cart;
-      default:
-        return Icons.category;
-    }
-  }
 
   /// Icon theo ưu tiên
   IconData _priorityIcon(int? p) {
     switch (p) {
       case 3:
-        return Icons.flash_on; // Cao
+        return Icons.flag; // Cao
       case 2:
-        return Icons.flash_on; // Trung bình
+        return Icons.flag; // Trung bình
       case 1:
-        return Icons.flash_on; // Thấp
+        return Icons.flag; // Thấp
       default:
-        return Icons.help_outline;
+        return Icons.flash_on;
     }
   }
 
